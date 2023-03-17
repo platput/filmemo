@@ -1,12 +1,16 @@
 [tool.poetry]
 name = "api"
 version = "0.1.0"
-description = ""
-authors = ["Your Name <you@example.com>"]
+description = "api for filmemo party game"
+authors = ["platput <plato@techtuft.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.11"
+fastapi = "^0.94.1"
+uvicorn = "^0.21.1"
+python-dotenv = "^1.0.0"
+google-cloud-firestore = "^2.10.0"
 
 
 [build-system]

@@ -1,13 +1,13 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket
 
 app = FastAPI()
 
 
 @app.get("/")
 async def root():
-    return {"message": "Hello World"}
+    return {"message": "Welcome to filmemo's API"}
 
 
-@app.get("/hello/{name}")
-async def say_hello(name: str):
-    return {"message": f"Hello {name}"}
+@app.websocket("/ws/{player_id}")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()

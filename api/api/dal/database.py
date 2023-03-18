@@ -20,8 +20,8 @@ class Database(Protocol):
     end_round(game: Game, game_round: Round) -> Round:
         Ends the current round in the game and returns the updated round object.
     end_game(game: Game) -> Game:
-        Ends the game and calculates the final scores, updates the game document in the database, and returns the updated
-        game object.
+        Ends the game and calculates the final scores, updates the game document in the database, and returns the
+        updated game object.
     """
     def create_game(self, game: Game) -> Game:
         ...

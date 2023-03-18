@@ -47,7 +47,7 @@ class Round(BaseModel):
     movie_name: str
     start_time: datetime | None
     end_time: datetime | None
-    results: dict[str:str]
+    results: dict[str:bool]
 
 
 class Game(BaseModel):
@@ -71,7 +71,7 @@ class Game(BaseModel):
     rounds : list[Round]
         A list of rounds in the game.
     results : list[dict[str:str]]
-        A list of dictionary which contains ID of the players as keys and scores as values.
+        A dictionary which contains ID of the players as keys and scores as values.
     Raises:
     -------
     ValueError
@@ -82,13 +82,13 @@ class Game(BaseModel):
     `created_by` should be the `id` of one of the players in `players`.
     """
     id: str = Field(default_factory=lambda: uuid.uuid4().hex)
-    users_count: int = 10
+    user_count: int = 10
     round_count: int = 10
     round_duration: timedelta = timedelta(minutes=1)
-    created_by: str  # Player.id
-    players: list[Player]
-    rounds: list[Round]
-    results: list[dict[str:str]]
+    created_by: str | None  # Player.id
+    players: list[Player] = []
+    rounds: list[Round] = []
+    results: dict[str:str] = {}
 
     @validator('users_count', 'round_count')
     def must_be_positive(self, value):

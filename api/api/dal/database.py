@@ -9,10 +9,10 @@ class Database(Protocol):
 
     Methods:
     --------
-    create_game(game: Game) -> Game:
-        Creates a new game document in the database and returns the updated game object.
-    add_player(game: Game, player: Player) -> Player:
-        Adds a new player document to the game's collection in the database and returns the updated player object.
+    upsert_game(game: Game) -> Game:
+        Creates/Updates a game document in the database and returns the game object.
+    get_game(game_id: str) -> Game:
+        Gets the game from the database based on the game id.
     submit_answer(game: Game, player: Player, movie_name: str) -> None:
         Updates the player's document in the database with the submitted answer.
     start_round(game: Game, game_round: Round) -> Round:
@@ -23,20 +23,8 @@ class Database(Protocol):
         Ends the game and calculates the final scores, updates the game document in the database, and returns the
         updated game object.
     """
-    def create_game(self, game: Game) -> Game:
+    def get_game(self, game_id: str) -> Game:
         ...
 
-    def add_player(self, game: Game, player: Player) -> Player:
-        ...
-
-    def submit_answer(self, game: Game, player: Player, game_round: Round, movie_name: str) -> None:
-        ...
-
-    def start_round(self, game: Game, game_round: Round) -> Round:
-        ...
-
-    def end_round(self, game: Game, game_round: Round) -> Round:
-        ...
-
-    def end_game(self, game: Game) -> Game:
+    def upsert_game(self, game: Game) -> Game:
         ...

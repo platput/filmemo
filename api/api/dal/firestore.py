@@ -14,18 +14,17 @@ class Firestore(Database):
     def __init__(self):
         self.client = firestore.Client()
 
-    def create_game(self, game: Game) -> Game:
-        self.client.collection(EntityNames.GAMES).document(game.id).set(game.dict())
+    def get_game(self, game_id: str) -> Game:
+        game_ref = self.client.collection(EntityNames.GAMES).document(game_id).get()
+        if game_ref.exists:
+            return Game(**game_ref.to_dict())
+        else:
+            raise GameNotFoundError(f"Game with id: {game_id} was not found in the database!")
+
+    def upsert_game(self, game: Game) -> Game:
+        self.client.collection(EntityNames.GAMES).document(game.id).set(game.dict(), merge=True)
         return game
 
-    def add_player(self, game: Game, player: Player) -> Player:
-        game_ref = self.client.collection(EntityNames.GAMES).document(game.id).get()
-        if game_ref.exists:
-            game.players.append(player)
-            self.client.collection(EntityNames.GAMES).document(game.id).set(game.dict(), merge=True)
-        else:
-            raise GameNotFoundError(f"Game with id: {game.id} was not found in the database!")
-        return player
 
     def submit_answer(self, game: Game, player: Player, game_round: Round, movie_name: str) -> None:
         game_ref = self.client.collection(EntityNames.GAMES).document(game.id).get()

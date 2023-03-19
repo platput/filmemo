@@ -1,4 +1,4 @@
-from fastapi import FastAPI, WebSocket
+from fastapi import FastAPI, WebSocket, Request
 
 app = FastAPI()
 
@@ -8,6 +8,12 @@ async def root():
     return {"message": "Welcome to filmemo's API"}
 
 
-@app.websocket("/ws/{player_id}")
+@app.post("/game/create")
+async def create_game(request: Request):
+    data = request.json()
+    data
+
+
+@app.websocket("/ws/{game_id}/{player_id}")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()

@@ -11,7 +11,6 @@ async def root():
 @app.post("/game/create")
 async def create_game(request: Request):
     data = request.json()
-    data
 
 
 @app.websocket("/ws/{game_id}/{player_id}")

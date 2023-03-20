@@ -6,18 +6,13 @@ from datetime import timedelta, datetime
 
 class Player(BaseModel):
     """
-    A class representing a player in the game.
+    Player model.
 
     Attributes:
-    -----------
-    id : str
-        A unique identifier for the player.
-    handle : str
-        The player's name or handle.
-    avatar : str
-        A base64 encoded string representing the player's avatar image.
-    score : int
-        The player's current score.
+        id (str): Unique identifier for the player.
+        handle (str): Handle of the player.
+        avatar (str): Avatar of the player.
+        score (int): Score of the player.
     """
     id: str = Field(default_factory=lambda: uuid.uuid4().hex)
     handle: str
@@ -27,59 +22,37 @@ class Player(BaseModel):
 
 class Round(BaseModel):
     """
-    A class representing a round in the game.
+    Round model.
 
     Attributes:
-    -----------
-    id : str
-        A unique identifier for the round.
-    emoji : str
-        A string representation of the emoji associated with this round.
-    movie_name : str
-        The name of the movie associated with this round.
-    start_time : datetime
-        The start time of the round.
-    results: dict[str:str]
-        The dictionary of player id and whether they submitted right or wrong answer.
+        id (str): Unique identifier for the round.
+        emoji (str): Emoji for the round.
+        movie_name (str): Name of the movie.
+        start_time (datetime | None): Start time of the round.
+        end_time (datetime | None): End time of the round.
+        results (dict[str:bool]): Results of the round.
     """
     id: str = Field(default_factory=lambda: uuid.uuid4().hex)
     emoji: str
     movie_name: str
-    start_time: datetime | None
-    end_time: datetime | None
-    results: dict[str:bool]
+    start_time: datetime | None = None
+    end_time: datetime | None = None
+    results: dict[str:bool] = {}
 
 
 class Game(BaseModel):
     """
-    A class representing a game.
+    Game model.
 
     Attributes:
-    -----------
-    id : str
-        A unique identifier for the game.
-    users_count : int
-        The maximum number of players allowed in the game.
-    round_count : int
-        The number of rounds in the game.
-    round_duration : timedelta
-        The duration of each round.
-    created_by : str
-        The ID of the player who created the game.
-    players : list[Player]
-        A list of players in the game.
-    rounds : list[Round]
-        A list of rounds in the game.
-    results : list[dict[str:str]]
-        A dictionary which contains ID of the players as keys and scores as values.
-    Raises:
-    -------
-    ValueError
-        If `users_count` or `round_count` is not a positive integer, or if `players` or `rounds` is empty.
-
-    Notes:
-    ------
-    `created_by` should be the `id` of one of the players in `players`.
+        id (str): Unique identifier for the game.
+        user_count (int): Number of users.
+        round_count (int): Number of rounds.
+        round_duration (timedelta): Duration of each round.
+        created_by (str | None): Creator of the game.
+        players (list[Player]): Players in the game.
+        rounds (list[Round]): Rounds in the game.
+        results (dict[str:str]): Results of the game.
     """
     id: str = Field(default_factory=lambda: uuid.uuid4().hex)
     user_count: int = 10

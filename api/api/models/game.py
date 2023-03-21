@@ -74,3 +74,34 @@ class Game(BaseModel):
         if not value:
             raise ValueError('must not be empty')
         return value
+
+
+class APIResponse(BaseModel):
+    """
+    Base response model for all api endpoints
+    Attributes:
+        status: Response status to indicate success or failure
+    """
+    status: str
+
+
+class CreateGame(APIResponse):
+    """
+    Response model for the create-game api endpoint
+    Attributes:
+        status: Response status to indicate success or failure
+        game_id: ID of the created game
+        created_by_player: ID of the player who created the game
+    """
+    game_id: str
+    created_by_player: str
+
+
+class AddPlayer(APIResponse):
+    """
+    Response model for the add-player api endpoint
+    Attributes:
+        status: Response status to indicate success or failure
+        player_id: ID of the created game
+    """
+    player_id: str

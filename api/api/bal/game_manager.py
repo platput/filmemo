@@ -23,38 +23,44 @@ class GameManager:
 
     def create_game(
             self,
-            created_by: str,
+            handle: str,
+            avatar: str,
             user_count: int,
             round_count: int,
             round_duration: timedelta,
-    ):
+    ) -> Game:
         """
         Creates the game with the creator specified settings
         Args:
-            created_by: Player ID of the creator
+            avatar: Player avatar
+            handle: Player handle
             user_count: Number of players allowed in the game
             round_count: Number of rounds for this game
             round_duration: Time limit for the rounds in the game
 
         Returns:
-            None
+            Game object
         """
+        player = Player(
+            handle=handle,
+            avatar=avatar,
+            score=0
+        )
         game = Game(
-            id=uuid.uuid4().hex,
-            created_by=created_by,
+            created_by=player.id,
             user_count=user_count,
             round_count=round_count,
             round_duration=round_duration,
-            players=[created_by]
+            players=[player.id]
         )
         self.db_client.upsert_game(game=game)
+        return game
 
-    def add_player(self, game_id: str, player_id: str, handle: str, avatar: str) -> Player:
+    def add_player(self, game_id: str, handle: str, avatar: str) -> Player:
         """
         Adds a player to the game
         Args:
             game_id: ID of the game to which the player has to be added
-            player_id: Player ID
             handle: Player handle/username
             avatar: Player avatar/display picture
 
@@ -63,7 +69,6 @@ class GameManager:
         """
         game = self.db_client.get_game(game_id)
         player = Player(
-            id=player_id,
             handle=handle,
             avatar=avatar,
             score=0
@@ -97,7 +102,7 @@ class GameManager:
                     "message": f"{p.handle} has joined the game.",
                     "message_type": "announcement"
                 }
-                if len(game.players) == len(current_game_connections):
+                if game.user_count == len(current_game_connections):
                     message_to_broadcast = {
                         "status": "success",
                         "message": "All players have joined the game, get ready to start guessing...",
@@ -138,6 +143,15 @@ class GameManager:
                 "message_type": "new_round"
             }
         await self.broadcast_to_all_players(game_id, message_to_broadcast)
+
+    async def start_round_if_everyone_joined(self, game_id: str, force_start: bool = False):
+        if force_start:
+            await self.start_round(game_id=game_id)
+        else:
+            current_game_connections = self.player_connections[game_id]
+            game = self.db_client.get_game(game_id=game_id)
+            if len(current_game_connections) == game.user_count:
+                await self.start_round(game_id=game_id)
 
     def submit_guess(self, game_id: str, round_id: str, player_id: str, movie_name: str):
         """

@@ -46,12 +46,14 @@ class GameManager:
             avatar=avatar,
             score=0
         )
+        rounds = self.create_rounds(round_count)
         game = Game(
             created_by=player.id,
             user_count=user_count,
             round_count=round_count,
             round_duration=round_duration,
-            players=[player.id]
+            rounds=rounds,
+            players=[player]
         )
         self.db_client.upsert_game(game=game)
         return game

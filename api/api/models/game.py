@@ -1,4 +1,5 @@
 import uuid
+from typing import Dict
 
 from pydantic import BaseModel, validator, Field
 from datetime import timedelta, datetime
@@ -37,7 +38,7 @@ class Round(BaseModel):
     movie_name: str
     start_time: datetime | None = None
     end_time: datetime | None = None
-    results: dict[str:bool] = {}
+    results: Dict = {}
 
 
 class Game(BaseModel):
@@ -61,16 +62,16 @@ class Game(BaseModel):
     created_by: str | None  # Player.id
     players: list[Player] = []
     rounds: list[Round] = []
-    results: dict[str:str] = {}
+    results: Dict = {}
 
-    @validator('users_count', 'round_count')
-    def must_be_positive(self, value):
+    @validator('user_count', 'round_count')
+    def must_be_positive(cls, value: int):
         if value <= 0:
             raise ValueError('must be a positive integer')
         return value
 
     @validator('players', 'rounds')
-    def must_not_be_empty(self, value):
+    def must_not_be_empty(cls, value: list[Player] | list[Round]):
         if not value:
             raise ValueError('must not be empty')
         return value

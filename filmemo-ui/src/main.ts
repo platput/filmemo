@@ -3,14 +3,15 @@ import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
 import '@fortawesome/fontawesome-free/css/all.css'
-import './assets/main.css'
 import 'vuetify/styles'
 import { createVuetify } from 'vuetify'
 import * as components from 'vuetify/components'
 import * as directives from 'vuetify/directives'
 import { aliases, fa } from 'vuetify/iconsets/fa'
+import { md3 } from 'vuetify/blueprints'
 
 const vuetify = createVuetify({
+  blueprint: md3,
   components,
   directives,
   icons: {

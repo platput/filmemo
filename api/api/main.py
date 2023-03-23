@@ -1,6 +1,6 @@
 from datetime import timedelta
 
-from fastapi import FastAPI, WebSocket, Request, BackgroundTasks
+from fastapi import FastAPI, WebSocket, Request
 
 from api.bal.game_manager import GameManager
 from api.models.game import CreateGame, AddPlayer, APIResponse

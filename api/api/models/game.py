@@ -1,5 +1,5 @@
 import uuid
-from typing import Dict
+from typing import Dict, DefaultDict
 
 from pydantic import BaseModel, validator, Field
 from datetime import timedelta, datetime
@@ -38,7 +38,7 @@ class Round(BaseModel):
     movie_name: str
     start_time: datetime | None = None
     end_time: datetime | None = None
-    results: Dict = {}
+    results: Dict[str:bool] = {}
 
 
 class Game(BaseModel):

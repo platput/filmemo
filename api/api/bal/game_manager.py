@@ -20,6 +20,7 @@ class GameManager:
         self.gpt_client = ChatGPTManager()
         self.game = None
         self.player_connections = defaultdict(dict[str:WebSocket])
+        self.game_events: dict[str:dict[str:asyncio.Event]] = {}
         self.game_started_flag = False
 
     def create_game(
@@ -116,6 +117,7 @@ class GameManager:
                         "message": "All players have joined the game, get ready to start guessing...",
                         "message_type": "announcement"
                     }
+                    await self.start_round_if_everyone_joined(game_id)
         await self.broadcast_to_all_players(game_id, message_to_broadcast)
 
     async def start_round(self, game_id: str):
@@ -150,6 +152,11 @@ class GameManager:
                 },
                 "message_type": "new_round"
             }
+            round_ended_event = asyncio.Event()
+            self.game_events[game_id] = {
+                current_round.id: round_ended_event
+            }
+            await self.handle_round(game_id, current_round.id)
         await self.broadcast_to_all_players(game_id, message_to_broadcast)
 
     async def start_round_if_everyone_joined(self, game_id: str, force_start: bool = False):
@@ -187,13 +194,36 @@ class GameManager:
                 )
             if r.id == round_id:
                 r.results[player_id] = self.gpt_client.check_if_right_guess(movie_emoji_dict, r.emoji, movie_name)
+                guessed_players = np.array(r.results.keys())
+                current_players = np.array(self.player_connections[game_id].keys())
+                if np.array_equal(guessed_players, current_players):
+                    if round_end_event := self.game_events.get(game_id, {}).get(round_id):
+                        # Setting the round end event which will be picked up by the handle_round function
+                        round_end_event.set()
         self.handle_round(game_id, round_id)
 
-    async def end_round(self, game_id: str, current_round_id: str):
-        # TODO: Handle round completion by submitting guesses with empty data and setting end_time
+    def end_round(self, game_id: str, current_round_id: str):
+        """
+        Ends the game by setting the end_time attribute of the current round
+        and by setting False as the guess for all the players who haven't yet made any guesses.
+        Then upserts the game object.
+        Args:
+            game_id:
+            current_round_id:
+
+        Returns:
+            None
+        """
         game = self.db_client.get_game(game_id=game_id)
-        duration = game.round_duration
-        await asyncio.sleep(duration.seconds)
+        for r in game.rounds:
+            if r.id == current_round_id:
+                r.end_time = datetime.now()
+                players_with_guesses = set(r.results.keys())
+                all_players = set([p.id for p in game.players])
+                players_without_guesses = list(all_players - players_with_guesses)
+                for p in players_without_guesses:
+                    r.results[p] = False
+        self.db_client.upsert_game(game)
 
     async def broadcast_to_all_players(self, game_id: str, message: dict):
         """
@@ -209,32 +239,36 @@ class GameManager:
         for _, ws in current_game_connections:
             ws.send_json(message)
 
-    def handle_round(self, game_id: str, current_round_id: str):
+    async def handle_round(self, game_id: str, current_round_id: str):
         """
-        Ends the current round, updates the game document in db, and starts a new round
+        Goes into an infinite loop which will exit once the round duration finishes by ending the round.
+        In case the round is ended before the duration met, it will exit the infinite loop as well.
         Args:
             game_id: Game ID
             current_round_id: Current round ID
 
         Returns:
-
+            None
         """
-        # TODO: Probably make this function a continuous function where it will receive an event a submission
-        #  has occurred. But no matter what, it will end the round if the time is passed.
-        #  It will check if the round is finished at each submit event as well.
         game = self.db_client.get_game(game_id=game_id)
+        current_round = None
         for r in game.rounds:
             if r.id == current_round_id:
-                guessed_players = np.array(r.results.keys())
-                current_players = np.array(self.player_connections[game_id].keys())
-                if r.start_time + game.round_duration >= datetime.now() or np.array_equal(guessed_players, current_players):
-                    r.end_time = datetime.now()
-                    self.db_client.upsert_game(game)
-                    self.start_round(game_id)
+                current_round = r
+        while True:
+            if current_round.start_time + game.round_duration >= datetime.now():
+                break
+            if round_end_event := self.game_events.get(game_id, {}).get(current_round_id):
+                if round_end_event.is_set():
+                    break
+        self.end_round(game_id, current_round_id)
+        self.game_events.get(game_id, {}).pop(current_round_id)
+        await self.start_round(game_id)
 
     def end_game(self, game_id: str):
         """
         Ends the game and populates the scores for all the players in the game. The updates the game in the db
+        TODO: Also frees up the websocket list from self.player_connections[game_id] belonging to this game.
         Args:
             game_id: Game ID
 
@@ -250,6 +284,7 @@ class GameManager:
                     results[k] += 1
         game.results = results
         self.db_client.upsert_game(game)
+        self.player_connections.pop(game_id)
 
     def get_game(self, game_id: str) -> Game:
         """

@@ -1,3 +1,4 @@
+import asyncio
 import uuid
 from collections import defaultdict
 from datetime import timedelta, datetime
@@ -8,7 +9,7 @@ from api.constants import EntityNames
 from api.dal.database import Database
 from api.dal.firestore import Firestore
 import numpy as np
-from api.errors.game import PlayerLimitMetError
+from api.errors.game import PlayerLimitMetError, InvalidAnswerSubmission
 from api.lib.chatgpt import ChatGPTManager
 from api.models.game import Game, Player, Round
 
@@ -102,7 +103,12 @@ class GameManager:
                 message_to_broadcast = {
                     "status": "success",
                     "message": f"{p.handle} has joined the game.",
-                    "message_type": "announcement"
+                    "message_type": "player_join",
+                    "meta": {
+                        "player_id": p.id,
+                        "handle": p.handle,
+                        "avatar": p.avatar,
+                    },
                 }
                 if game.user_count == len(current_game_connections):
                     message_to_broadcast = {
@@ -175,9 +181,19 @@ class GameManager:
                 "emoji": r.emoji
             })
         for r in game.rounds:
+            if r.end_time is not None:
+                raise InvalidAnswerSubmission(
+                    "Invalid submission: The answer for the round you are trying to submit answer has already ended."
+                )
             if r.id == round_id:
                 r.results[player_id] = self.gpt_client.check_if_right_guess(movie_emoji_dict, r.emoji, movie_name)
         self.handle_round(game_id, round_id)
+
+    async def end_round(self, game_id: str, current_round_id: str):
+        # TODO: Handle round completion by submitting guesses with empty data and setting end_time
+        game = self.db_client.get_game(game_id=game_id)
+        duration = game.round_duration
+        await asyncio.sleep(duration.seconds)
 
     async def broadcast_to_all_players(self, game_id: str, message: dict):
         """
@@ -203,12 +219,15 @@ class GameManager:
         Returns:
 
         """
+        # TODO: Probably make this function a continuous function where it will receive an event a submission
+        #  has occurred. But no matter what, it will end the round if the time is passed.
+        #  It will check if the round is finished at each submit event as well.
         game = self.db_client.get_game(game_id=game_id)
         for r in game.rounds:
             if r.id == current_round_id:
                 guessed_players = np.array(r.results.keys())
                 current_players = np.array(self.player_connections[game_id].keys())
-                if np.array_equal(guessed_players, current_players):
+                if r.start_time + game.round_duration >= datetime.now() or np.array_equal(guessed_players, current_players):
                     r.end_time = datetime.now()
                     self.db_client.upsert_game(game)
                     self.start_round(game_id)

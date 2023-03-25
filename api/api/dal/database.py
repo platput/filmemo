@@ -1,6 +1,4 @@
-from typing import Protocol
-
-from api.models.game import Game
+from typing import Protocol, Dict
 
 
 class Database(Protocol):
@@ -9,9 +7,9 @@ class Database(Protocol):
 
     Methods:
         get_game(game_id: str) -> Game: Get a game by ID.
-        upsert_game(game: Game) -> Game: Upsert a game.
+        upsert_game(game: Dict) -> Game: Upsert a game.
     """
-    def get_game(self, game_id: str) -> Game:
+    def get_game(self, game_id: str) -> Dict:
         """
         Gets the game with the given ID.
         Args:
@@ -22,7 +20,7 @@ class Database(Protocol):
         """
         ...
 
-    def upsert_game(self, game: Game) -> Game:
+    def upsert_game(self, game: Dict) -> Dict:
         """
         Creates or updates a game object in the database
         Args:

@@ -9,7 +9,10 @@ from api.constants import EntityNames
 from api.dal.database import Database
 from api.dal.firestore import Firestore
 import numpy as np
-from api.errors.game import PlayerLimitMetError, InvalidAnswerSubmission
+
+from api.errors.database import GameNotFoundError
+from api.errors.game import PlayerLimitMetError, RoundNotExistsError, InvalidPlayerError, \
+    RoundAlreadyEndedError, RoundNotStartedError
 from api.lib.chatgpt import ChatGPTManager
 from api.models.game import Game, Player, Round
 
@@ -22,6 +25,20 @@ class GameManager:
         self.player_connections = defaultdict(dict[str:WebSocket])
         self.game_events: dict[str:dict[str:asyncio.Event]] = {}
         self.game_started_flag = False
+
+    def __get_game_from_db(self, game_id: str) -> Game:
+        """
+        Gets the game from the db based on the given ID
+        Args:
+            game_id: Game ID to get.
+
+        Returns:
+            Game object
+        """
+        if game_dict := self.db_client.get_game(game_id):
+            return Game(**game_dict)
+        else:
+            raise GameNotFoundError(f"Game with id: {game_id} was not found in the database!")
 
     def create_game(
             self,
@@ -57,7 +74,7 @@ class GameManager:
             rounds=rounds,
             players=[player]
         )
-        self.db_client.upsert_game(game=game)
+        self.db_client.upsert_game(game=game.dict())
         return game
 
     def add_player(self, game_id: str, handle: str, avatar: str) -> Player:
@@ -71,16 +88,16 @@ class GameManager:
         Returns:
             Player: Player object
         """
-        game = self.db_client.get_game(game_id)
+        game = self.__get_game_from_db(game_id)
         player = Player(
             handle=handle,
             avatar=avatar,
             score=0
         )
-        if len(game.players) == len(self.player_connections[game_id].keys()):
+        if len(game.players) == game.user_count:
             raise PlayerLimitMetError("All available seats are filled in this game room.")
         game.players.append(player)
-        self.db_client.upsert_game(game)
+        self.db_client.upsert_game(game.dict())
         return player
 
     async def join_game(self, game_id: str, player_id: str, websocket: WebSocket):
@@ -95,7 +112,9 @@ class GameManager:
             None
         """
         current_game_connections = self.player_connections[game_id]
-        game = self.db_client.get_game(game_id=game_id)
+        game = self.__get_game_from_db(game_id)
+        if player_id not in [p.id for p in game.players]:
+            raise InvalidPlayerError("Can't join the game before the player is added to the game.")
         current_game_connections[player_id] = websocket
         await websocket.accept()
         message_to_broadcast = {}
@@ -130,13 +149,13 @@ class GameManager:
         Returns:
             None
         """
-        game = self.db_client.get_game(game_id=game_id)
+        game = self.__get_game_from_db(game_id)
         current_round = None
         for r in game.rounds:
             if r.start_time is None:
                 current_round = r
                 current_round.start_time = datetime.now()
-                self.db_client.upsert_game(game)
+                self.db_client.upsert_game(game.dict())
         if current_round is None:
             self.end_game(game_id)
             message_to_broadcast = {
@@ -164,7 +183,7 @@ class GameManager:
             await self.start_round(game_id=game_id)
         else:
             current_game_connections = self.player_connections[game_id]
-            game = self.db_client.get_game(game_id=game_id)
+            game = self.__get_game_from_db(game_id)
             if len(current_game_connections) == game.user_count:
                 await self.start_round(game_id=game_id)
 
@@ -180,26 +199,39 @@ class GameManager:
         Returns:
             None
         """
-        game = self.db_client.get_game(game_id=game_id)
+        game = self.__get_game_from_db(game_id)
         movie_emoji_dict = []
         for r in game.rounds:
             movie_emoji_dict.append({
                 "movie_name": r.movie_name,
                 "emoji": r.emoji
             })
+        round_found_flag = False
         for r in game.rounds:
-            if r.end_time is not None:
-                raise InvalidAnswerSubmission(
-                    "Invalid submission: The answer for the round you are trying to submit answer has already ended."
-                )
             if r.id == round_id:
+                round_found_flag = True
+                if r.start_time is None:
+                    raise RoundNotStartedError(
+                        "Invalid submission: The answer for the round you are trying to submit answer has not started"
+                        " yet"
+                    )
+                if r.end_time is not None:
+                    raise RoundAlreadyEndedError(
+                        "Invalid submission: The answer for the round you are trying to submit answer has already "
+                        "ended."
+                    )
                 r.results[player_id] = self.gpt_client.check_if_right_guess(movie_emoji_dict, r.emoji, movie_name)
+                self.db_client.upsert_game(game.dict())
                 guessed_players = np.array(r.results.keys())
                 current_players = np.array(self.player_connections[game_id].keys())
                 if np.array_equal(guessed_players, current_players):
                     if round_end_event := self.game_events.get(game_id, {}).get(round_id):
                         # Setting the round end event which will be picked up by the handle_round function
                         round_end_event.set()
+        if not round_found_flag:
+            raise RoundNotExistsError(
+                "Invalid submission: The answer was submitted for a round which doesn't exist."
+            )
         self.handle_round(game_id, round_id)
 
     def end_round(self, game_id: str, current_round_id: str):
@@ -214,7 +246,7 @@ class GameManager:
         Returns:
             None
         """
-        game = self.db_client.get_game(game_id=game_id)
+        game = self.__get_game_from_db(game_id)
         for r in game.rounds:
             if r.id == current_round_id:
                 r.end_time = datetime.now()
@@ -223,7 +255,7 @@ class GameManager:
                 players_without_guesses = list(all_players - players_with_guesses)
                 for p in players_without_guesses:
                     r.results[p] = False
-        self.db_client.upsert_game(game)
+        self.db_client.upsert_game(game.dict())
 
     async def broadcast_to_all_players(self, game_id: str, message: dict):
         """
@@ -250,7 +282,7 @@ class GameManager:
         Returns:
             None
         """
-        game = self.db_client.get_game(game_id=game_id)
+        game = self.__get_game_from_db(game_id)
         current_round = None
         for r in game.rounds:
             if r.id == current_round_id:
@@ -275,7 +307,7 @@ class GameManager:
         Returns:
             None
         """
-        game = self.db_client.get_game(game_id=game_id)
+        game = self.__get_game_from_db(game_id)
         results = defaultdict(int)
         rounds = game.rounds
         for r in rounds:
@@ -283,19 +315,8 @@ class GameManager:
                 if v:
                     results[k] += 1
         game.results = results
-        self.db_client.upsert_game(game)
+        self.db_client.upsert_game(game.dict())
         self.player_connections.pop(game_id)
-
-    def get_game(self, game_id: str) -> Game:
-        """
-        Gets the game from the db based on the given ID
-        Args:
-            game_id: Game ID to get.
-
-        Returns:
-            Game object
-        """
-        return self.db_client.get_game(game_id=game_id)
 
     def create_rounds(self, count: int) -> list[Round]:
         """

@@ -1,8 +1,9 @@
+from typing import Dict
+
 from google.cloud import firestore
 
 from api.constants import EntityNames
 from api.dal.database import Database
-from api.errors.database import GameNotFoundError
 from api.models.game import Game
 
 
@@ -14,7 +15,7 @@ class Firestore(Database):
     def __init__(self):
         self.client = firestore.Client()
 
-    def get_game(self, game_id: str) -> Game:
+    def get_game(self, game_id: str) -> Dict:
         """
         Gets the game from the firestore document collection for the given game id
         Args:
@@ -25,11 +26,11 @@ class Firestore(Database):
         """
         game_ref = self.client.collection(EntityNames.GAMES).document(game_id).get()
         if game_ref.exists:
-            return Game(**game_ref.to_dict())
+            return game_ref.to_dict()
         else:
-            raise GameNotFoundError(f"Game with id: {game_id} was not found in the database!")
+            return {}
 
-    def upsert_game(self, game: Game) -> Game:
+    def upsert_game(self, game: Dict) -> Dict:
         """
         Upserts the game object with merge enabled
         Args:
@@ -38,5 +39,5 @@ class Firestore(Database):
         Returns:
             Game: Upserted Game object
         """
-        self.client.collection(EntityNames.GAMES).document(game.id).set(game.dict(), merge=True)
+        self.client.collection(EntityNames.GAMES).document(game.get("id")).set(game, merge=True)
         return game

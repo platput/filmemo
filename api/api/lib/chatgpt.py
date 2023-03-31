@@ -26,13 +26,13 @@ class ChatGPTManager:
         Returns:
 
         """
+        content = f'I need {count} movie names and their emoji representations.' \
+                  f'format for the json: ' \
+                  f'`[{{"<emoji_representation>": "<movie_name>"}}, {{"<emoji_representation>": "<movie_name>"}}]`' \
+                  f'The movie name should be very very easy to guess from the emoji.'
         movie_emojis_message = {
             "role": "user",
-            "content": f'I need a list of {count} movie names and their emoji representation. This is for a movie '
-                       f'guessing game. Here, each of the item in the list should be a dictionary where there will be '
-                       f'2 key value pairs. Keys are "emoji" and "movie_name". The value of emoji will be the emoji '
-                       f'and the value of movie_name will be the name of the movie users have to guess from the emoji '
-                       f'representation. The movie names should be very very easy to guess from the emojis.'
+            "content": content
         }
         messages = [
             self.system_message,
@@ -43,13 +43,21 @@ class ChatGPTManager:
             messages=messages,
         )
         if choices := response.choices:
-            content = choices[0].message
+            content = choices[0].message.content
             content = content.strip()
             json_start_index = content.find("[")
             json_end_index = content.find("]")
             content = content[json_start_index:json_end_index + 1]
             content = json.loads(content)
-            return content
+            movies = []
+            for item in content:
+                emoji = list(item.keys())[0]
+                movie = {
+                    "emoji": emoji,
+                    "movie_name": item[emoji]
+                }
+                movies.append(movie)
+            return movies
         else:
             return random.choices(emoji_movies, k=count)
 

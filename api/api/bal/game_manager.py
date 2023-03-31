@@ -2,6 +2,8 @@ import asyncio
 import uuid
 from collections import defaultdict
 from datetime import timedelta, datetime
+import pytz
+from typing import Tuple
 
 from fastapi import WebSocket
 
@@ -25,6 +27,7 @@ class GameManager:
         self.player_connections = defaultdict(dict[str:WebSocket])
         self.game_events: dict[str:dict[str:asyncio.Event]] = {}
         self.game_started_flag = False
+        self.tz = pytz.timezone('UTC')
 
     def __get_game_from_db(self, game_id: str) -> Game:
         """
@@ -117,7 +120,6 @@ class GameManager:
             raise InvalidPlayerError("Can't join the game before the player is added to the game.")
         current_game_connections[player_id] = websocket
         await websocket.accept()
-        message_to_broadcast = {}
         for p in game.players:
             if p.id == player_id:
                 message_to_broadcast = {
@@ -130,14 +132,15 @@ class GameManager:
                         "avatar": p.avatar,
                     },
                 }
+                await self.broadcast_to_all_players(game_id, message_to_broadcast)
                 if game.user_count == len(current_game_connections):
                     message_to_broadcast = {
                         "status": "success",
                         "message": "All players have joined the game, get ready to start guessing...",
                         "message_type": "announcement"
                     }
-                    await self.start_round_if_everyone_joined(game_id)
-        await self.broadcast_to_all_players(game_id, message_to_broadcast)
+                await self.broadcast_to_all_players(game_id, message_to_broadcast)
+        await self.start_round_if_everyone_joined(game_id)
 
     async def start_round(self, game_id: str):
         """
@@ -154,7 +157,7 @@ class GameManager:
         for r in game.rounds:
             if r.start_time is None:
                 current_round = r
-                current_round.start_time = datetime.now()
+                current_round.start_time = datetime.now(self.tz)
                 self.db_client.upsert_game(game.dict())
         if current_round is None:
             self.end_game(game_id)
@@ -184,7 +187,7 @@ class GameManager:
         else:
             current_game_connections = self.player_connections[game_id]
             game = self.__get_game_from_db(game_id)
-            if len(current_game_connections) == game.user_count:
+            if len(current_game_connections.keys()) == game.user_count:
                 await self.start_round(game_id=game_id)
 
     def submit_guess(self, game_id: str, round_id: str, player_id: str, movie_name: str):
@@ -249,7 +252,7 @@ class GameManager:
         game = self.__get_game_from_db(game_id)
         for r in game.rounds:
             if r.id == current_round_id:
-                r.end_time = datetime.now()
+                r.end_time = datetime.now(self.tz)
                 players_with_guesses = set(r.results.keys())
                 all_players = set([p.id for p in game.players])
                 players_without_guesses = list(all_players - players_with_guesses)
@@ -268,8 +271,8 @@ class GameManager:
             None
         """
         current_game_connections = self.player_connections[game_id]
-        for _, ws in current_game_connections:
-            ws.send_json(message)
+        for _, ws in current_game_connections.items():
+            await ws.send_json(message)
 
     async def handle_round(self, game_id: str, current_round_id: str):
         """
@@ -288,7 +291,7 @@ class GameManager:
             if r.id == current_round_id:
                 current_round = r
         while True:
-            if current_round.start_time + game.round_duration >= datetime.now():
+            if current_round.start_time + game.round_duration >= datetime.now(self.tz):
                 break
             if round_end_event := self.game_events.get(game_id, {}).get(current_round_id):
                 if round_end_event.is_set():
@@ -336,4 +339,20 @@ class GameManager:
                 movie_name=em.get(EntityNames.MOVIE_NAME),
             )
             rounds.append(game_ground)
-        return rounds
+        return rounds[:count+1]
+
+    def is_game_valid(self, game_id: str) -> Tuple[bool, Game | None]:
+        """
+        Checks if a game id is valid and returns a boolean value to indicate if the game id is valid along with
+        the game's object if the game exists
+        Args:
+            game_id:
+
+        Returns:
+            bool, Game | None
+        """
+        game = self.__get_game_from_db(game_id)
+        if game.results:
+            return False, None
+        else:
+            return True, game

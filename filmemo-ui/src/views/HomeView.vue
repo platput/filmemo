@@ -1,7 +1,5 @@
 <script setup lang="ts">
-import type InfoCardVue from '@/components/InfoCard.vue';
-import type MovieCardVue from '@/components/MovieCard.vue';
-import type PlayersListVue from '@/components/PlayersList.vue';
+import MovieCard from '@/components/MovieCard.vue';
 
 </script>
 
@@ -10,37 +8,13 @@ import type PlayersListVue from '@/components/PlayersList.vue';
     <v-row>
       <v-col
         cols="12"
-        sm="2"
-      >
-        <v-sheet
-          rounded="lg"
-          min-height="268"
-        >
-          <PlayersListVue />
-        </v-sheet>
-      </v-col>
-
-      <v-col
-        cols="12"
-        sm="8"
+        sm="12"
       >
         <v-sheet
           min-height="70vh"
           rounded="lg"
         >
-          <MovieCardVue />
-        </v-sheet>
-      </v-col>
-
-      <v-col
-        cols="12"
-        sm="2"
-      >
-        <v-sheet
-          rounded="lg"
-          min-height="268"
-        >
-          <InfoCardVue />
+          <MovieCard />
         </v-sheet>
       </v-col>
     </v-row>

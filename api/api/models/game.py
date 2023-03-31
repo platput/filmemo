@@ -1,5 +1,5 @@
 import uuid
-from typing import Dict
+from typing import Dict, Any
 
 from pydantic import BaseModel, validator, Field
 from datetime import timedelta, datetime
@@ -64,6 +64,12 @@ class Game(BaseModel):
     rounds: list[Round] = []
     results: Dict = {}
 
+    def dict(self, *args, **kwargs) -> Dict[str, Any]:
+        """Overrides the default dict implementation to convert the `rounds` attribute to a list of dicts."""
+        d = super().dict(*args, **kwargs)
+        d["round_duration"] = self.round_duration.seconds / 60
+        return d
+
     @validator('user_count', 'round_count')
     def must_be_positive(cls, value: int):
         if value <= 0:
@@ -86,7 +92,7 @@ class APIResponse(BaseModel):
     status: str
 
 
-class CreateGame(APIResponse):
+class CreateGameResponse(APIResponse):
     """
     Response model for the create-game api endpoint
     Attributes:
@@ -98,7 +104,7 @@ class CreateGame(APIResponse):
     created_by_player: str
 
 
-class AddPlayer(APIResponse):
+class AddPlayerResponse(APIResponse):
     """
     Response model for the add-player api endpoint
     Attributes:
@@ -106,3 +112,20 @@ class AddPlayer(APIResponse):
         player_id: ID of the created game
     """
     player_id: str
+
+
+class VerifyGameResponse(APIResponse):
+    """
+    Response model for verify game api endpoint
+    Attributes:
+        game_id: game id
+        user_count: number of users in the game
+        round_count: number of rounds in the game
+        round_duration: duration of each round in the game
+        created_by: id of the player who created the game
+    """
+    game_id: str
+    user_count: int
+    round_count: int
+    round_duration: timedelta = timedelta(minutes=1)
+    created_by: str

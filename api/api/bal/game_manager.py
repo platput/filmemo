@@ -3,7 +3,7 @@ import uuid
 from collections import defaultdict
 from datetime import timedelta, datetime
 import pytz
-from typing import Tuple
+from typing import Tuple, Dict
 
 from fastapi import WebSocket
 
@@ -14,7 +14,7 @@ import numpy as np
 
 from api.errors.database import GameNotFoundError
 from api.errors.game import PlayerLimitMetError, RoundNotExistsError, InvalidPlayerError, \
-    RoundAlreadyEndedError, RoundNotStartedError
+    RoundAlreadyEndedError, RoundNotStartedError, GameNotFinishedError
 from api.lib.chatgpt import ChatGPTManager
 from api.models.game import Game, Player, Round
 
@@ -159,11 +159,9 @@ class GameManager:
                 current_round = r
                 current_round.start_time = datetime.now(self.tz)
                 self.db_client.upsert_game(game.dict())
+                break
         if current_round is None:
-            self.end_game(game_id)
-            message_to_broadcast = {
-                "message_type": "game_end"
-            }
+            await self.end_game(game_id)
         else:
             message_to_broadcast = {
                 "status": "success",
@@ -178,8 +176,8 @@ class GameManager:
             self.game_events[game_id] = {
                 current_round.id: round_ended_event
             }
+            await self.broadcast_to_all_players(game_id, message_to_broadcast)
             await self.handle_round(game_id, current_round.id)
-        await self.broadcast_to_all_players(game_id, message_to_broadcast)
 
     async def start_round_if_everyone_joined(self, game_id: str, force_start: bool = False):
         if force_start:
@@ -190,7 +188,7 @@ class GameManager:
             if len(current_game_connections.keys()) == game.user_count:
                 await self.start_round(game_id=game_id)
 
-    def submit_guess(self, game_id: str, round_id: str, player_id: str, movie_name: str):
+    async def submit_guess(self, game_id: str, round_id: str, player_id: str, movie_name: str):
         """
         Submit the guessed movie name and populates the round results dictionary
         Args:
@@ -204,7 +202,7 @@ class GameManager:
         """
         game = self.__get_game_from_db(game_id)
         movie_emoji_dict = []
-        for r in game.rounds:
+        for r in game.rounds[:(game.round_count + 1)]:
             movie_emoji_dict.append({
                 "movie_name": r.movie_name,
                 "emoji": r.emoji
@@ -223,7 +221,19 @@ class GameManager:
                         "Invalid submission: The answer for the round you are trying to submit answer has already "
                         "ended."
                     )
-                r.results[player_id] = self.gpt_client.check_if_right_guess(movie_emoji_dict, r.emoji, movie_name)
+                is_guess_correct = self.gpt_client.check_if_right_guess(movie_emoji_dict, r.emoji, movie_name)
+                r.results[player_id] = is_guess_correct
+                player_socket = self.player_connections[game_id][player_id]
+                message_to_send = {
+                    "status": "success",
+                    "message": "Is guess correct?",
+                    "meta": {
+                        "player_id": player_id,
+                        "guess_result": is_guess_correct
+                    },
+                    "message_type": "guess_result"
+                }
+                await player_socket.send_json(message_to_send)
                 self.db_client.upsert_game(game.dict())
                 guessed_players = np.array(r.results.keys())
                 current_players = np.array(self.player_connections[game_id].keys())
@@ -235,7 +245,6 @@ class GameManager:
             raise RoundNotExistsError(
                 "Invalid submission: The answer was submitted for a round which doesn't exist."
             )
-        self.handle_round(game_id, round_id)
 
     def end_round(self, game_id: str, current_round_id: str):
         """
@@ -291,6 +300,7 @@ class GameManager:
             if r.id == current_round_id:
                 current_round = r
         while True:
+            await asyncio.sleep(1)
             if current_round.start_time + game.round_duration >= datetime.now(self.tz):
                 break
             if round_end_event := self.game_events.get(game_id, {}).get(current_round_id):
@@ -300,7 +310,7 @@ class GameManager:
         self.game_events.get(game_id, {}).pop(current_round_id)
         await self.start_round(game_id)
 
-    def end_game(self, game_id: str):
+    async def end_game(self, game_id: str):
         """
         Ends the game and populates the scores for all the players in the game. The updates the game in the db
         TODO: Also frees up the websocket list from self.player_connections[game_id] belonging to this game.
@@ -311,13 +321,26 @@ class GameManager:
             None
         """
         game = self.__get_game_from_db(game_id)
-        results = defaultdict(int)
+        results = {}
+        for player in game.players:
+            results[player.id] = 0
         rounds = game.rounds
         for r in rounds:
-            for k, v in r.results:
+            for k, v in r.results.items():
                 if v:
                     results[k] += 1
-        game.results = results
+        sorted_result = dict(sorted(results.items(), key=lambda x: x[1]))
+        game.results = sorted_result
+        message_to_broadcast = {
+            "status": "success",
+            "message": "Game ended",
+            "meta": {
+                "game_id": game.id,
+                "game_results": game.results
+            },
+            "message_type": "end_game"
+        }
+        await self.broadcast_to_all_players(game_id=game.id, message=message_to_broadcast)
         self.db_client.upsert_game(game.dict())
         self.player_connections.pop(game_id)
 
@@ -353,6 +376,23 @@ class GameManager:
         """
         game = self.__get_game_from_db(game_id)
         if game.results:
-            return False, None
+            return False, game
         else:
             return True, game
+
+    def get_game_with_results(self, game_id: str) -> Game:
+        """
+        Gets games results and returns the game object.
+        Args:
+            game_id:
+
+        Returns:
+            Game
+        """
+        game = self.__get_game_from_db(game_id)
+        if game.results:
+            return game
+        else:
+            raise GameNotFinishedError("Game has not finished yet!")
+
+

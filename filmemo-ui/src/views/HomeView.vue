@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import MovieCard from '@/components/MovieCard.vue';
+import CreateGame from '../components/CreateGame.vue';
 
 </script>
 
@@ -14,7 +14,10 @@ import MovieCard from '@/components/MovieCard.vue';
           min-height="70vh"
           rounded="lg"
         >
-          <MovieCard />
+          <v-sheet class="pt-5">
+            <p class="text-h4 text-center mb-5">Create Game</p>
+            <CreateGame />
+          </v-sheet>
         </v-sheet>
       </v-col>
     </v-row>

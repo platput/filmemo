@@ -16,3 +16,7 @@ class RoundNotStartedError(Exception):
 
 class RoundAlreadyEndedError(Exception):
     """Raise when answer is submitted to a round which is already ended"""
+
+
+class GameNotFinishedError(Exception):
+    """Raise when game is not yet finished"""

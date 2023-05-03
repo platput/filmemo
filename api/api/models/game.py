@@ -129,3 +129,7 @@ class VerifyGameResponse(APIResponse):
     round_count: int
     round_duration: timedelta = timedelta(minutes=1)
     created_by: str
+
+
+class GetGameWithResultsResponse(APIResponse):
+    game: Game

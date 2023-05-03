@@ -66,7 +66,7 @@
           ></v-text-field>        
         <AvatarSelector @set-avatar="setAvatar" />
         <div class="text-center pb-5">
-            <v-btn @click="handleCreateGameClick" :disabled="isCreateGameDisabled" rounded="false" variant="flat">
+            <v-btn @click="handleCreateGameClick" :disabled="isCreateGameDisabled" rounded="false" variant="flat" :loading="state.isLoading">
                 Create Game
             </v-btn>
         </div>
@@ -129,7 +129,6 @@ function createGame() {
         let responseData =  await response.json();
         user.setUser(responseData.created_by_player, state.userHandle, state.userAvatar);
         game.setGame(responseData.game_id, responseData.created_by_player, state.userCount, state.roundCount, state.roundDuration);
-        console.log(responseData);
         router.push(`/game/${game.getGameId()}`)
     }).catch((err) => {
         // TODO: Handling of this error has to be improved.

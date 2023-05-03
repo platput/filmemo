@@ -5,7 +5,9 @@ from starlette.middleware.cors import CORSMiddleware
 
 from api.bal.game_manager import GameManager
 from api.errors.database import GameNotFoundError
-from api.models.game import CreateGameResponse, AddPlayerResponse, APIResponse, VerifyGameResponse
+from api.errors.game import RoundNotExistsError, RoundAlreadyEndedError
+from api.models.game import CreateGameResponse, AddPlayerResponse, APIResponse, VerifyGameResponse, \
+    GetGameWithResultsResponse
 
 app = FastAPI()
 
@@ -73,13 +75,18 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str, player_id: str)
 @app.post("/game/submit")
 async def submit_answer(request: Request):
     data = await request.json()
-    game_mgr.submit_guess(
-        game_id=data.get("game_id"),
-        round_id=data.get("round_id"),
-        player_id=data.get("player_id"),
-        movie_name=data.get("movie_name"),
-    )
-    return APIResponse(status="OK")
+    try:
+        await game_mgr.submit_guess(
+            game_id=data.get("game_id"),
+            round_id=data.get("round_id"),
+            player_id=data.get("player_id"),
+            movie_name=data.get("movie_name"),
+        )
+        return APIResponse(status="OK")
+    except RoundNotExistsError:
+        raise HTTPException(status_code=404, detail="Invalid Round")
+    except RoundAlreadyEndedError:
+        raise HTTPException(status_code=404, detail="Round Ended")
 
 
 @app.post("/game/verify")
@@ -99,6 +106,20 @@ async def check_if_game_id_is_valid(request: Request):
             round_count=game.round_count,
             round_duration=game.round_duration,
             created_by=game.created_by
+        )
+    else:
+        raise HTTPException(status_code=404, detail="Invalid Game")
+
+
+@app.post("/game/results")
+async def get_game(request: Request):
+    data = await request.json()
+    game_id = data.get("game_id")
+    game = game_mgr.get_game_with_results(game_id)
+    if game.results:
+        return GetGameWithResultsResponse(
+            status="OK",
+            game=game
         )
     else:
         raise HTTPException(status_code=404, detail="Invalid Game")

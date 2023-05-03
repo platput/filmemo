@@ -6,5 +6,6 @@ export default {
     apiAddPlayerUrl: apiHost + "/player/add",
     apiSubmitGuessUrl: apiHost + "/game/submit",
     apiVerifyGameUrl: apiHost + "/game/verify",
+    apiGameWithResultsUrl: apiHost + "/game/results",
     websocketUrl: wsHost + "/ws"
 }

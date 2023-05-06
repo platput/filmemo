@@ -10,3 +10,7 @@ class EntityNames:
 
 class ENVConstants:
     OPENAI_API_KEY = "OPENAI_API_KEY"
+
+
+class LogConstants:
+    APP_NAME = "filmemo"

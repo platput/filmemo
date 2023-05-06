@@ -36,8 +36,8 @@ onBeforeMount(() => {
         },
         body: JSON.stringify(data)
     }).then(async (response) => {
-        isLoading.value = false
         if(response.status == 200) {
+            loadingMessage.value = "Waiting for players to join..."
             const data = await response.json()
             gameStore.setGame(data.game_id, data.created_by, data.user_count, data.round_count, data.round_duration)
             invalidGame.value = false
@@ -45,24 +45,31 @@ onBeforeMount(() => {
             socket.addEventListener('message', event => {
               const message_data = JSON.parse(event.data)
               if (message_data.message_type == "new_round") {
-                console.log("roundId: " + roundId.value)
-                console.log("message_data.meta.round_id: " + message_data.meta.round_id)
+                // console.log("roundId: " + roundId.value)
+                // console.log("message_data.meta.round_id: " + message_data.meta.round_id)
                   roundId.value = message_data.meta.round_id
                   emoji.value = message_data.meta.emoji
+                  isLoading.value = false;
               } else if(message_data.message_type == "end_game") {
-                console.log("Game Ended!")
+                // console.log("Game Ended!")
+                socket.close();
                 router.push(`/game/${gameId}/results`)
+              } else if(message_data.message_type == "player_join") {
+                // console.log("Player Joined!");
+                // console.log(message_data);
+              } else if(message_data.message_type == "game_start") {
+                // console.log("game_start!");
+                isLoading.value = false;
+                // console.log(message_data);
               } else if (message_data.message_type == "guess_result") {
-                let guessCorrectnessFlag = message_data.meta.guess_result;
-                console.log("guessCorrectnessFlag", guessCorrectnessFlag);
+                // let guessCorrectnessFlag = message_data.meta.guess_result;
+                // console.log("guessCorrectnessFlag", guessCorrectnessFlag);
               }
             })
         } else {
             invalidGame.value = true
             alert("You are trying to join an invalid game.")
-        }
-        isLoading.value = false
-        loadingMessage.value = "Loading..."
+        }        
     }).catch((err) => {
         isLoading.value = false
         loadingMessage.value = "Loading..."
@@ -87,9 +94,6 @@ function submitGuess(movieName:string) {
             "Content-Type": "application/json"
         },
         body: JSON.stringify(data)
-  }).then(() => {
-    isLoading.value = false
-    loadingMessage.value = "Loading..."
   })
 }
 </script>

@@ -1,5 +1,6 @@
 import json
 import random
+from json import JSONDecodeError
 
 import openai
 
@@ -54,7 +55,6 @@ The reply shouldn't have anything part from either `yes` or `no`.
             model=self.model,
             messages=messages,
         )
-        print(response.choices)
         if choices := response.choices:
             content = choices[0].message.content
             content = content.strip()

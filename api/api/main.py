@@ -1,13 +1,22 @@
+import asyncio
+import logging
 from datetime import timedelta
 
 from fastapi import FastAPI, WebSocket, Request, HTTPException
 from starlette.middleware.cors import CORSMiddleware
+from websockets.exceptions import ConnectionClosedError
 
 from api.bal.game_manager import GameManager
+from api.constants import LogConstants
 from api.errors.database import GameNotFoundError
 from api.errors.game import RoundNotExistsError, RoundAlreadyEndedError
 from api.models.game import CreateGameResponse, AddPlayerResponse, APIResponse, VerifyGameResponse, \
     GetGameWithResultsResponse
+
+
+logger = logging.getLogger(LogConstants.APP_NAME)
+logger.setLevel(logging.INFO)
+
 
 app = FastAPI()
 
@@ -34,7 +43,7 @@ async def root():
 @app.post("/game/create")
 async def create_game(request: Request):
     data = await request.json()
-    game = game_mgr.create_game(
+    game = await game_mgr.create_game(
         handle=data.get("handle"),
         avatar=data.get("avatar"),
         user_count=int(data.get("user_count")),
@@ -69,7 +78,18 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str, player_id: str)
         player_id=player_id,
         websocket=websocket
     )
-    await game_mgr.start_round_if_everyone_joined(game_id=game_id)
+
+    while True:
+        try:
+            await asyncio.sleep(1)
+            message_to_send = {
+                "status": "success",
+                "message": "heartbeat",
+                "message_type": "heartbeat"
+            }
+            await websocket.send_json(message_to_send)
+        except ConnectionClosedError:
+            break
 
 
 @app.post("/game/submit")

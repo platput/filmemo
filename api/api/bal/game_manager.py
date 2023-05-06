@@ -1,13 +1,16 @@
 import asyncio
+import logging
 import uuid
 from collections import defaultdict
 from datetime import timedelta, datetime
+from json import JSONDecodeError
+
 import pytz
-from typing import Tuple, Dict
+from typing import Tuple
 
 from fastapi import WebSocket
 
-from api.constants import EntityNames
+from api.constants import EntityNames, LogConstants
 from api.dal.database import Database
 from api.dal.firestore import Firestore
 import numpy as np
@@ -43,7 +46,7 @@ class GameManager:
         else:
             raise GameNotFoundError(f"Game with id: {game_id} was not found in the database!")
 
-    def create_game(
+    async def create_game(
             self,
             handle: str,
             avatar: str,
@@ -68,7 +71,7 @@ class GameManager:
             avatar=avatar,
             score=0
         )
-        rounds = self.create_rounds(round_count)
+        rounds = await self.create_rounds(round_count)
         game = Game(
             created_by=player.id,
             user_count=user_count,
@@ -97,8 +100,6 @@ class GameManager:
             avatar=avatar,
             score=0
         )
-        if len(game.players) == game.user_count:
-            raise PlayerLimitMetError("All available seats are filled in this game room.")
         game.players.append(player)
         self.db_client.upsert_game(game.dict())
         return player
@@ -114,12 +115,15 @@ class GameManager:
         Returns:
             None
         """
-        current_game_connections = self.player_connections[game_id]
         game = self.__get_game_from_db(game_id)
+        if len(self.player_connections[game_id].keys()) >= game.user_count:
+            logging.getLogger(LogConstants.APP_NAME).info("Maximum number of players are already in the room.")
+            await websocket.close()
+            return
         if player_id not in [p.id for p in game.players]:
             raise InvalidPlayerError("Can't join the game before the player is added to the game.")
-        current_game_connections[player_id] = websocket
         await websocket.accept()
+        self.player_connections[game_id][player_id] = websocket
         for p in game.players:
             if p.id == player_id:
                 message_to_broadcast = {
@@ -133,14 +137,19 @@ class GameManager:
                     },
                 }
                 await self.broadcast_to_all_players(game_id, message_to_broadcast)
-                if game.user_count == len(current_game_connections):
+        # Wait until all players join the game!
+        if player_id == game.created_by:
+            while True:
+                await asyncio.sleep(1)
+                if game.user_count == len(self.player_connections[game_id].keys()):
                     message_to_broadcast = {
                         "status": "success",
                         "message": "All players have joined the game, get ready to start guessing...",
-                        "message_type": "announcement"
+                        "message_type": "game_start"
                     }
-                await self.broadcast_to_all_players(game_id, message_to_broadcast)
-        await self.start_round_if_everyone_joined(game_id)
+                    await self.broadcast_to_all_players(game_id, message_to_broadcast)
+                    break
+            await self.start_round_if_everyone_joined(game_id, player_id)
 
     async def start_round(self, game_id: str):
         """
@@ -179,12 +188,12 @@ class GameManager:
             await self.broadcast_to_all_players(game_id, message_to_broadcast)
             await self.handle_round(game_id, current_round.id)
 
-    async def start_round_if_everyone_joined(self, game_id: str, force_start: bool = False):
-        if force_start:
+    async def start_round_if_everyone_joined(self, game_id: str, player_id: str, force_start: bool = False):
+        game = self.__get_game_from_db(game_id)
+        if game.created_by == player_id and force_start:
             await self.start_round(game_id=game_id)
         else:
             current_game_connections = self.player_connections[game_id]
-            game = self.__get_game_from_db(game_id)
             if len(current_game_connections.keys()) == game.user_count:
                 await self.start_round(game_id=game_id)
 
@@ -344,7 +353,7 @@ class GameManager:
         self.db_client.upsert_game(game.dict())
         self.player_connections.pop(game_id)
 
-    def create_rounds(self, count: int) -> list[Round]:
+    async def create_rounds(self, count: int) -> list[Round]:
         """
         Creates the rounds by getting the movie name and emoji dictionary
         Args:
@@ -354,7 +363,13 @@ class GameManager:
             List of rounds
         """
         rounds: list[Round] = []
-        emoji_movies_list = self.gpt_client.get_movie_names_in_emoji_repr(count)
+        while True:
+            await asyncio.sleep(1)
+            try:
+                emoji_movies_list = self.gpt_client.get_movie_names_in_emoji_repr(count)
+                break
+            except JSONDecodeError:
+                logging.getLogger(LogConstants.APP_NAME).warning("Improper json content from chatgpt! Retrying...")
         for em in emoji_movies_list:
             game_ground = Round(
                 id=uuid.uuid4().hex,

@@ -58,7 +58,7 @@ function addPlayer() {
         body: JSON.stringify(data)
     }).then(async (response) => {
         let responseData =  await response.json();
-        user.setUser(responseData.player_id, state.userHandle, state.userAvatar);
+        user.setCurrentUser(responseData.player_id, state.userHandle, state.userAvatar);
         router.push(`/game/${gameId}`)
     }).catch((err) => {
         // TODO: Handling of this error has to be improved.

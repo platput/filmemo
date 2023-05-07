@@ -9,6 +9,7 @@ import pytz
 from typing import Tuple
 
 from fastapi import WebSocket
+from websockets.exceptions import ConnectionClosedError
 
 from api.constants import EntityNames, LogConstants
 from api.dal.database import Database
@@ -16,8 +17,8 @@ from api.dal.firestore import Firestore
 import numpy as np
 
 from api.errors.database import GameNotFoundError
-from api.errors.game import PlayerLimitMetError, RoundNotExistsError, InvalidPlayerError, \
-    RoundAlreadyEndedError, RoundNotStartedError, GameNotFinishedError
+from api.errors.game import RoundNotExistsError, InvalidPlayerError, \
+    RoundAlreadyEndedError, RoundNotStartedError, GameNotFinishedError, ActionNotPermittedError
 from api.lib.chatgpt import ChatGPTManager
 from api.models.game import Game, Player, Round
 
@@ -131,9 +132,12 @@ class GameManager:
                     "message": f"{p.handle} has joined the game.",
                     "message_type": "player_join",
                     "meta": {
-                        "player_id": p.id,
-                        "handle": p.handle,
-                        "avatar": p.avatar,
+                        "new_player": {
+                            "id": p.id,
+                            "handle": p.handle,
+                            "avatar": p.avatar,
+                        },
+                        "existing_players": game.dict().get("players", [])
                     },
                 }
                 await self.broadcast_to_all_players(game_id, message_to_broadcast)
@@ -190,8 +194,13 @@ class GameManager:
 
     async def start_round_if_everyone_joined(self, game_id: str, player_id: str, force_start: bool = False):
         game = self.__get_game_from_db(game_id)
+        for r in game.rounds:
+            if r.start_time is not None:
+                raise ActionNotPermittedError("The game has been started already.")
         if game.created_by == player_id and force_start:
             await self.start_round(game_id=game_id)
+        elif game.created_by != player_id and force_start:
+            raise ActionNotPermittedError("Only game creators can force start the game!")
         else:
             current_game_connections = self.player_connections[game_id]
             if len(current_game_connections.keys()) == game.user_count:
@@ -289,8 +298,11 @@ class GameManager:
             None
         """
         current_game_connections = self.player_connections[game_id]
-        for _, ws in current_game_connections.items():
-            await ws.send_json(message)
+        for player_id, ws in current_game_connections.items():
+            try:
+                await ws.send_json(message)
+            except ConnectionClosedError:
+                del self.player_connections[game_id][player_id]
 
     async def handle_round(self, game_id: str, current_round_id: str):
         """
@@ -409,5 +421,3 @@ class GameManager:
             return game
         else:
             raise GameNotFinishedError("Game has not finished yet!")
-
-

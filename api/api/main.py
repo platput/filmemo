@@ -9,7 +9,7 @@ from websockets.exceptions import ConnectionClosedError
 from api.bal.game_manager import GameManager
 from api.constants import LogConstants
 from api.errors.database import GameNotFoundError
-from api.errors.game import RoundNotExistsError, RoundAlreadyEndedError
+from api.errors.game import RoundNotExistsError, RoundAlreadyEndedError, ActionNotPermittedError
 from api.models.game import CreateGameResponse, AddPlayerResponse, APIResponse, VerifyGameResponse, \
     GetGameWithResultsResponse
 
@@ -55,6 +55,22 @@ async def create_game(request: Request):
         game_id=game.id,
         created_by_player=game.created_by
     )
+
+
+@app.post("/game/start")
+async def start_game(request: Request):
+    data = await request.json()
+    try:
+        await game_mgr.start_round_if_everyone_joined(
+            game_id=data.get("game_id"),
+            player_id=data.get("player_id"),
+            force_start=True
+        )
+        return APIResponse(
+            status="OK",
+        )
+    except ActionNotPermittedError as e:
+        raise HTTPException(status_code=404, detail=e)
 
 
 @app.post("/player/add")

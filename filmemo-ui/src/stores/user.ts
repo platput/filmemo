@@ -7,17 +7,34 @@ interface User {
     userAvatar: string,
 }
 export const useUserStore = defineStore('user', () => {
-  const user = ref<User>({ userID: '', userHandle: '', userAvatar: '' })
-  function setUser(userID: string, userHandle: string, userAvatar: string) {
-    user.value = {
+  const currentUser = ref<User>({ userID: '', userHandle: '', userAvatar: '' })
+  const players = ref<User[]>([])
+  function setCurrentUser(userID: string, userHandle: string, userAvatar: string) {
+    currentUser.value = {
         userID,
         userHandle,
         userAvatar,
     }
   }
-  function getUserID() {
-    return user.value.userID
+  function addPlayer(userID: string, userHandle: string, userAvatar: string) {
+    const playerIdExists = players.value.some((player) => player.userID === userID);
+      if (!playerIdExists) {
+        players.value.push({
+          userID,
+          userHandle,
+          userAvatar,
+        });
+      }
   }
-
-  return { user, setUser, getUserID }
+  function getCurrentUserID() {
+    return currentUser.value.userID
+  }
+  function getPlayersList() {
+    return players.value
+  }
+  function clear() {
+    currentUser.value = {userID: '', userHandle: '', userAvatar: ''};
+    players.value = []
+  }
+  return { currentUser, setCurrentUser, getCurrentUserID, addPlayer, getPlayersList, clear }
 })

@@ -9,12 +9,13 @@ import { useUserStore } from '@/stores/user';
 import constants from '@/utils/constants';
 import { ref, onBeforeMount } from 'vue';
 import { useRoute } from 'vue-router';
+import { fa } from 'vuetify/lib/iconsets/fa';
 
 const userStore = useUserStore()
 const gameStore = useGameStore()
 
 function isCurrentUserGameOwner() {
-    return userStore.getUserID() == gameStore.getGameCreator()
+    return userStore.getCurrentUserID() == gameStore.getGameCreator()
 }
 
 const route = useRoute()
@@ -39,12 +40,13 @@ onBeforeMount(() => {
         if(response.status == 200) {
             loadingMessage.value = "Waiting for players to join..."
             const data = await response.json()
-            gameStore.setGame(data.game_id, data.created_by, data.user_count, data.round_count, data.round_duration)
+            gameStore.setGame(data.game_id, data.created_by, data.user_count, data.round_count, data.round_duration, false)
             invalidGame.value = false
-            const socket = new WebSocket(constants.websocketUrl + `/${data.game_id}/${userStore.getUserID()}`)
+            const socket = new WebSocket(constants.websocketUrl + `/${data.game_id}/${userStore.getCurrentUserID()}`)
             socket.addEventListener('message', event => {
               const message_data = JSON.parse(event.data)
               if (message_data.message_type == "new_round") {
+                gameStore.setGameStartedFlag();
                 // console.log("roundId: " + roundId.value)
                 // console.log("message_data.meta.round_id: " + message_data.meta.round_id)
                   roundId.value = message_data.meta.round_id
@@ -52,11 +54,25 @@ onBeforeMount(() => {
                   isLoading.value = false;
               } else if(message_data.message_type == "end_game") {
                 // console.log("Game Ended!")
+                loadingMessage.value = "Game finished, loading results..."
                 socket.close();
+                userStore.clear()
                 router.push(`/game/${gameId}/results`)
               } else if(message_data.message_type == "player_join") {
+                // console.log(message_data.meta);
                 // console.log("Player Joined!");
-                // console.log(message_data);
+                if (userStore.getPlayersList().length <= 1) {
+                  message_data.meta.existing_players.forEach((player: { id: string; handle: string; avatar: string; }) => {
+                    const userID = player.id;
+                    const userHandle = player.handle;
+                    const userAvatar = player.avatar;
+                    userStore.addPlayer(userID, userHandle, userAvatar);
+                  });
+                }
+                const userID = message_data.meta.new_player.id;
+                const userHandle = message_data.meta.new_player.handle;
+                const userAvatar = message_data.meta.new_player.avatar;
+                userStore.addPlayer(userID, userHandle, userAvatar);
               } else if(message_data.message_type == "game_start") {
                 // console.log("game_start!");
                 isLoading.value = false;
@@ -85,7 +101,7 @@ function submitGuess(movieName:string) {
   const data = {
     game_id: gameStore.getGameId(),
     round_id: roundId.value,
-    player_id: userStore.getUserID(),
+    player_id: userStore.getCurrentUserID(),
     movie_name: movieName
   }
   fetch(constants.apiSubmitGuessUrl, {
@@ -95,6 +111,19 @@ function submitGuess(movieName:string) {
         },
         body: JSON.stringify(data)
   })
+}
+function startGame() {
+  const data = {
+    game_id: gameStore.getGameId(),
+    player_id: userStore.getCurrentUserID(),
+  }
+   fetch(constants.apiStartGameUrl, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(data)
+    })
 }
 </script>
 
@@ -121,9 +150,15 @@ function submitGuess(movieName:string) {
           min-height="70vh"
           rounded="lg"
         >
+          <ShareGame v-if="isCurrentUserGameOwner()" />
           <div v-if="isLoading" class="text-center">
             <v-progress-circular indeterminate :size="128" :width="12" color="brown" class="my-10"></v-progress-circular>
             <p class="text-h4 pb-10">{{ loadingMessage }}</p>
+            <div v-if="isCurrentUserGameOwner() && !gameStore.checkIfGameHasStarted()" class="py-20">
+              <v-btn @click="startGame()" class="mx-auto mb-15">
+                <v-icon icon="fa-duotone fa-flag-checkered"></v-icon>Start Game
+              </v-btn>
+            </div>
           </div>
           <div v-else>
             <div v-if="invalidGame" class="text-center">
@@ -131,7 +166,6 @@ function submitGuess(movieName:string) {
                 <p class="text-h4 py-10">Invalid Game URL</p>
             </div>
             <div v-else>
-                <ShareGame v-if="isCurrentUserGameOwner()" />
                 <MovieCard :emoji="emoji" @submit-guess="submitGuess"/>
             </div>
           </div>

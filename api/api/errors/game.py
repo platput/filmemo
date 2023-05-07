@@ -20,3 +20,7 @@ class RoundAlreadyEndedError(Exception):
 
 class GameNotFinishedError(Exception):
     """Raise when game is not yet finished"""
+
+
+class ActionNotPermittedError(Exception):
+    """Raise when players try to do something not allowed"""

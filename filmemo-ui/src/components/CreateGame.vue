@@ -127,8 +127,8 @@ function createGame() {
         body: JSON.stringify(data)
     }).then(async (response) => {
         let responseData =  await response.json();
-        user.setUser(responseData.created_by_player, state.userHandle, state.userAvatar);
-        game.setGame(responseData.game_id, responseData.created_by_player, state.userCount, state.roundCount, state.roundDuration);
+        user.setCurrentUser(responseData.created_by_player, state.userHandle, state.userAvatar);
+        game.setGame(responseData.game_id, responseData.created_by_player, state.userCount, state.roundCount, state.roundDuration, false);
         router.push(`/game/${game.getGameId()}`)
     }).catch((err) => {
         // TODO: Handling of this error has to be improved.

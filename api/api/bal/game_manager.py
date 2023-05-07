@@ -43,6 +43,7 @@ class GameManager:
             Game object
         """
         if game_dict := self.db_client.get_game(game_id):
+            game_dict["round_duration"] = timedelta(minutes=int(game_dict['round_duration']))
             return Game(**game_dict)
         else:
             raise GameNotFoundError(f"Game with id: {game_id} was not found in the database!")
@@ -322,7 +323,7 @@ class GameManager:
                 current_round = r
         while True:
             await asyncio.sleep(1)
-            if current_round.start_time + game.round_duration >= datetime.now(self.tz):
+            if current_round.start_time + game.round_duration <= datetime.now(self.tz):
                 break
             if round_end_event := self.game_events.get(game_id, {}).get(current_round_id):
                 if round_end_event.is_set():

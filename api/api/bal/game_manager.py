@@ -73,6 +73,12 @@ class GameManager:
             avatar=avatar,
             score=0
         )
+        if round_count < 1:
+            round_count = 1
+        if user_count < 1:
+            user_count = 1
+        if round_duration < timedelta(minutes=1):
+            round_duration = timedelta(minutes=1)
         rounds = await self.create_rounds(round_count)
         game = Game(
             created_by=player.id,

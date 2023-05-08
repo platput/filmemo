@@ -3,6 +3,7 @@
         <div class="text-caption">Number of Users</div>
         <v-slider
             v-model="state.userCount"
+            :min="1"
             :max="60"
             :step="1"
             thumb-label
@@ -22,6 +23,7 @@
         <div class="text-caption">Number of Rounds</div>
         <v-slider
             v-model="state.roundCount"
+            :min="1"
             :max="60"
             :step="1"
             thumb-label
@@ -42,6 +44,7 @@
         <v-slider
             v-model="state.roundDuration"
             :max="10"
+            :min="1"
             :step="1"
             thumb-label
             class="my-4"

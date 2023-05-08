@@ -23,6 +23,6 @@ poetry run coverage run -m pytest . && coverage report -m
   - the openai api key should be set in github secrets
   - gcp credentials file should exist in the ec2 instance
   - the path to credential file should be set under the env key `GOOGLE_APPLICATION_CREDENTIALS`
-- There will be 2 set of tags ui-v1.0.0 and api-v1.0.0
+- There will be 2 set of tags `ui-release-1.0.0` and `api-release-1.0.0`
   - upon a new tag like ui-v only ui action will be triggered
   - upon a new tag like api-v only api action will be triggered

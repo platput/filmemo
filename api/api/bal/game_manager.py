@@ -18,7 +18,7 @@ import numpy as np
 
 from api.errors.database import GameNotFoundError
 from api.errors.game import RoundNotExistsError, InvalidPlayerError, \
-    RoundAlreadyEndedError, RoundNotStartedError, GameNotFinishedError, ActionNotPermittedError
+    RoundAlreadyEndedError, RoundNotStartedError, GameNotFinishedError, ActionNotPermittedError, PlayerLimitMetError
 from api.lib.chatgpt import ChatGPTManager
 from api.models.game import Game, Player, Round
 
@@ -103,6 +103,8 @@ class GameManager:
             Player: Player object
         """
         game = self.__get_game_from_db(game_id)
+        if len(game.players) == game.user_count:
+            raise PlayerLimitMetError("Max number of players reached.")
         player = Player(
             handle=handle,
             avatar=avatar,

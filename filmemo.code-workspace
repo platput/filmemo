@@ -7,7 +7,7 @@
 			"path": "api"
 		},
 		{
-			"path": "deployment"
+			"path": "."
 		}
 	]
 }

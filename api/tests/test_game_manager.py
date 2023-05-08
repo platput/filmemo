@@ -1,5 +1,5 @@
 import json
-from datetime import timedelta, datetime
+from datetime import timedelta
 
 import pytest
 from fastapi import FastAPI
@@ -57,29 +57,34 @@ class TestGameManager:
                             self.mock_gpt.get_movie_names_in_emoji_repr)
         monkeypatch.setattr(self.game_manager.gpt_client, "check_if_right_guess", self.mock_gpt.check_if_right_guess)
 
-    def test_create_game(self, monkeypatch):
+    @pytest.mark.asyncio
+    async def test_create_game(self, monkeypatch):
         self.initialize_tests(monkeypatch)
         # Create the game
-        game = self.game_manager.create_game(handle="test_handle", avatar="test_avatar", user_count=3, round_count=2,
-                                             round_duration=timedelta(minutes=1))
+        game = await self.game_manager.create_game(handle="test_handle", avatar="test_avatar", user_count=3,
+                                                   round_count=2,
+                                                   round_duration=timedelta(minutes=1))
         # Assertions
         assert isinstance(game, Game)
         assert game.user_count == 3
         assert game.round_count == 2
         assert game.round_duration == timedelta(minutes=1)
 
-    def test_add_player(self, monkeypatch):
+    @pytest.mark.asyncio
+    async def test_add_player(self, monkeypatch):
         self.initialize_tests(monkeypatch)
         # Happy path test
-        game = self.game_manager.create_game(handle="test_handle", avatar="test_avatar", user_count=3, round_count=2,
-                                             round_duration=timedelta(minutes=1))
+        game = await self.game_manager.create_game(handle="test_handle", avatar="test_avatar", user_count=3,
+                                                   round_count=2,
+                                                   round_duration=timedelta(minutes=1))
         player = self.game_manager.add_player(game_id=game.id, handle="player_handle", avatar="player_avatar")
         assert isinstance(player, Player)
         assert player.handle == "player_handle"
         assert player.avatar == "player_avatar"
         assert player.score == 0
 
-    def test_add_player_limit_met(self, monkeypatch):
+    @pytest.mark.asyncio
+    async def test_add_player_limit_met(self, monkeypatch):
         """
         Tests if players can be added to the game even after meeting the limit of game's user count
         Note: First player is added as soon as the game is created
@@ -89,48 +94,61 @@ class TestGameManager:
             None
         """
         self.initialize_tests(monkeypatch)
-        game = self.game_manager.create_game(handle="test_handle", avatar="test_avatar", user_count=1, round_count=2,
-                                             round_duration=timedelta(minutes=1))
+        game = await self.game_manager.create_game(handle="test_handle", avatar="test_avatar", user_count=1,
+                                                   round_count=2,
+                                                   round_duration=timedelta(minutes=1))
         with pytest.raises(PlayerLimitMetError):
             self.game_manager.add_player(game_id=game.id, handle="player_handle", avatar="player_avatar")
 
-    def test_add_player_invalid_game_id(self, monkeypatch):
+    @pytest.mark.asyncio
+    async def test_add_player_invalid_game_id(self, monkeypatch):
         self.initialize_tests(monkeypatch)
-        game = self.game_manager.create_game(handle="test_handle", avatar="test_avatar", user_count=1, round_count=2,
-                                             round_duration=timedelta(minutes=1))
+        game = await self.game_manager.create_game(handle="test_handle", avatar="test_avatar", user_count=1,
+                                                   round_count=2,
+                                                   round_duration=timedelta(minutes=1))
         with pytest.raises(GameNotFoundError):
             self.game_manager.add_player(game_id="invalid_id", handle="player_handle", avatar="player_avatar")
 
-    def test_submit_guess_invalid_player_id(self, monkeypatch):
+    @pytest.mark.asyncio
+    async def test_submit_guess_invalid_player_id(self, monkeypatch):
         self.initialize_tests(monkeypatch)
-        game = self.game_manager.create_game(handle="test_handle", avatar="test_avatar", user_count=1, round_count=1,
-                                             round_duration=timedelta(minutes=1))
+        game = await self.game_manager.create_game(handle="test_handle", avatar="test_avatar", user_count=1,
+                                                   round_count=1,
+                                                   round_duration=timedelta(minutes=1))
         with pytest.raises(RoundNotExistsError):
-            self.game_manager.submit_guess(game_id=game.id, round_id="invalid_round_id", player_id="invalid_player_id",
-                                           movie_name="movie_name")
+            await self.game_manager.submit_guess(game_id=game.id, round_id="invalid_round_id",
+                                                 player_id="invalid_player_id",
+                                                 movie_name="movie_name")
 
-    def test_submit_guess_invalid_round_id(self, monkeypatch):
+    @pytest.mark.asyncio
+    async def test_submit_guess_invalid_round_id(self, monkeypatch):
         self.initialize_tests(monkeypatch)
-        game = self.game_manager.create_game(handle="test_handle", avatar="test_avatar", user_count=1, round_count=1,
-                                             round_duration=timedelta(minutes=1))
+        game = await self.game_manager.create_game(handle="test_handle", avatar="test_avatar", user_count=1,
+                                                   round_count=1,
+                                                   round_duration=timedelta(minutes=1))
         with pytest.raises(RoundNotExistsError):
-            self.game_manager.submit_guess(game_id=game.id, round_id="invalid_round_id", player_id="invalid_player_id",
-                                           movie_name="movie_name")
+            await self.game_manager.submit_guess(game_id=game.id, round_id="invalid_round_id",
+                                                 player_id="invalid_player_id",
+                                                 movie_name="movie_name")
 
-    def test_submit_guess_not_started_round_id(self, monkeypatch):
+    @pytest.mark.asyncio
+    async def test_submit_guess_not_started_round_id(self, monkeypatch):
         self.initialize_tests(monkeypatch)
-        game = self.game_manager.create_game(handle="test_handle", avatar="test_avatar", user_count=1, round_count=1,
-                                             round_duration=timedelta(minutes=1))
+        game = await self.game_manager.create_game(handle="test_handle", avatar="test_avatar", user_count=1,
+                                                   round_count=1,
+                                                   round_duration=timedelta(minutes=1))
         player = game.players[0]
         game.rounds[0].end_time = game.rounds[0].start_time = None
         with pytest.raises(RoundNotStartedError):
-            self.game_manager.submit_guess(game_id=game.id, round_id=game.rounds[0].id, player_id=player.id,
-                                           movie_name="movie_name")
+            await self.game_manager.submit_guess(game_id=game.id, round_id=game.rounds[0].id, player_id=player.id,
+                                                 movie_name="movie_name")
 
-    def test_get_game_with_results(self, monkeypatch):
+    @pytest.mark.asyncio
+    async def test_get_game_with_results(self, monkeypatch):
         self.initialize_tests(monkeypatch)
-        game = self.game_manager.create_game(handle="test_handle", avatar="test_avatar", user_count=1, round_count=1,
-                                             round_duration=timedelta(minutes=1))
+        game = await self.game_manager.create_game(handle="test_handle", avatar="test_avatar", user_count=1,
+                                                   round_count=1,
+                                                   round_duration=timedelta(minutes=1))
         results = {game.players[0].id: 1}
         game.results = results
         self.game_manager.db_client.upsert_game(game.dict())
@@ -139,10 +157,12 @@ class TestGameManager:
         assert game.results.get(game.players[0].id) == results.get(game.players[0].id)
         assert game.players[0].id in results.keys()
 
-    def test_get_game_with_results_when_game_has_not_finished(self, monkeypatch):
+    @pytest.mark.asyncio
+    async def test_get_game_with_results_when_game_has_not_finished(self, monkeypatch):
         self.initialize_tests(monkeypatch)
-        game = self.game_manager.create_game(handle="test_handle", avatar="test_avatar", user_count=1, round_count=1,
-                                             round_duration=timedelta(minutes=1))
+        game = await self.game_manager.create_game(handle="test_handle", avatar="test_avatar", user_count=1,
+                                                   round_count=1,
+                                                   round_duration=timedelta(minutes=1))
         with pytest.raises(GameNotFinishedError):
             self.game_manager.get_game_with_results(game.id)
 
@@ -199,7 +219,6 @@ class TestGameManager:
     #             # assert the contents of the message
     #             message = json.loads(message)
     #             assert message.get("message_type") == "new_round"
-
 
     # @pytest.mark.anyio
     # async def test_join_game(self, test_client, monkeypatch):

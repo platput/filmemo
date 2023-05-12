@@ -7,5 +7,6 @@ RUN apt update && apt install -y build-essential
 RUN pip install poetry
 RUN poetry install
 
-WORKDIR /app/api/
-CMD ["uvicorn", "api.main:app", "--host 0.0.0.0", "--port 8080"]
+WORKDIR /app/api
+# poetry run uvicorn api.main:app --host 0.0.0.0 --port 8081
+CMD ["poetry", "run", "uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8080"]

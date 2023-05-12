@@ -9,4 +9,4 @@ RUN poetry install
 
 WORKDIR /app/api
 # poetry run uvicorn api.main:app --host 0.0.0.0 --port 8081
-CMD ["poetry", "run", "uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["poetry", "run", "uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8234"]

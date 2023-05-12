@@ -1,11 +1,16 @@
+import asyncio
 import json
+from collections import defaultdict
 from datetime import timedelta
 
 import pytest
+import pytz
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from starlette.websockets import WebSocket
 
 from api.bal.game_manager import GameManager
+from api.dal.database import Database
 from api.errors.database import GameNotFoundError
 from api.errors.game import PlayerLimitMetError, RoundNotExistsError, RoundNotStartedError, \
     GameNotFinishedError
@@ -20,7 +25,7 @@ async def test_client():
     return client
 
 
-class MockFirestore:
+class MockFirestore(Database):
     def __init__(self):
         self.games = {}
 
@@ -45,21 +50,39 @@ class MockGPTManager:
             return False
 
 
+@pytest.fixture
+def patched_game_manager():
+    class PatchedGameManager(GameManager):
+        def __init__(self):
+            # super().__init__()
+            # do something here
+            self.db_client: Database = MockFirestore()
+            self.gpt_client = MockGPTManager()
+            self.game = None
+            self.player_connections = defaultdict(dict[str:WebSocket])
+            self.game_events: dict[str:dict[str:asyncio.Event]] = {}
+            self.game_started_flag = False
+            self.tz = pytz.timezone('UTC')
+    return PatchedGameManager
+
+
 class TestGameManager:
-    def initialize_tests(self, monkeypatch):
-        self.game_manager = GameManager()
+    def initialize_tests(self, monkeypatch, patched_game_manager):
+        self.game_manager = patched_game_manager()
         # Mock the Firestore functions
         self.mock_firestore = MockFirestore()
         self.mock_gpt = MockGPTManager()
+        monkeypatch.setattr(self.game_manager.db_client, "__init__", lambda x: x)
         monkeypatch.setattr(self.game_manager.db_client, "upsert_game", self.mock_firestore.upsert_game)
         monkeypatch.setattr(self.game_manager.db_client, "get_game", self.mock_firestore.get_game)
         monkeypatch.setattr(self.game_manager.gpt_client, "get_movie_names_in_emoji_repr",
                             self.mock_gpt.get_movie_names_in_emoji_repr)
         monkeypatch.setattr(self.game_manager.gpt_client, "check_if_right_guess", self.mock_gpt.check_if_right_guess)
+        # monkeypatch.setattr(self.game_manager, "Firestore", MockFirestore())
 
     @pytest.mark.asyncio
-    async def test_create_game(self, monkeypatch):
-        self.initialize_tests(monkeypatch)
+    async def test_create_game(self, monkeypatch, patched_game_manager):
+        self.initialize_tests(monkeypatch, patched_game_manager)
         # Create the game
         game = await self.game_manager.create_game(handle="test_handle", avatar="test_avatar", user_count=3,
                                                    round_count=2,
@@ -71,8 +94,8 @@ class TestGameManager:
         assert game.round_duration == timedelta(minutes=1)
 
     @pytest.mark.asyncio
-    async def test_add_player(self, monkeypatch):
-        self.initialize_tests(monkeypatch)
+    async def test_add_player(self, monkeypatch, patched_game_manager):
+        self.initialize_tests(monkeypatch, patched_game_manager)
         # Happy path test
         game = await self.game_manager.create_game(handle="test_handle", avatar="test_avatar", user_count=3,
                                                    round_count=2,
@@ -84,7 +107,7 @@ class TestGameManager:
         assert player.score == 0
 
     @pytest.mark.asyncio
-    async def test_add_player_limit_met(self, monkeypatch):
+    async def test_add_player_limit_met(self, monkeypatch, patched_game_manager):
         """
         Tests if players can be added to the game even after meeting the limit of game's user count
         Note: First player is added as soon as the game is created
@@ -93,7 +116,7 @@ class TestGameManager:
         Returns:
             None
         """
-        self.initialize_tests(monkeypatch)
+        self.initialize_tests(monkeypatch, patched_game_manager)
         game = await self.game_manager.create_game(handle="test_handle", avatar="test_avatar", user_count=1,
                                                    round_count=2,
                                                    round_duration=timedelta(minutes=1))
@@ -101,8 +124,8 @@ class TestGameManager:
             self.game_manager.add_player(game_id=game.id, handle="player_handle", avatar="player_avatar")
 
     @pytest.mark.asyncio
-    async def test_add_player_invalid_game_id(self, monkeypatch):
-        self.initialize_tests(monkeypatch)
+    async def test_add_player_invalid_game_id(self, monkeypatch, patched_game_manager):
+        self.initialize_tests(monkeypatch, patched_game_manager)
         game = await self.game_manager.create_game(handle="test_handle", avatar="test_avatar", user_count=1,
                                                    round_count=2,
                                                    round_duration=timedelta(minutes=1))
@@ -110,8 +133,8 @@ class TestGameManager:
             self.game_manager.add_player(game_id="invalid_id", handle="player_handle", avatar="player_avatar")
 
     @pytest.mark.asyncio
-    async def test_submit_guess_invalid_player_id(self, monkeypatch):
-        self.initialize_tests(monkeypatch)
+    async def test_submit_guess_invalid_player_id(self, monkeypatch, patched_game_manager):
+        self.initialize_tests(monkeypatch, patched_game_manager)
         game = await self.game_manager.create_game(handle="test_handle", avatar="test_avatar", user_count=1,
                                                    round_count=1,
                                                    round_duration=timedelta(minutes=1))
@@ -121,8 +144,8 @@ class TestGameManager:
                                                  movie_name="movie_name")
 
     @pytest.mark.asyncio
-    async def test_submit_guess_invalid_round_id(self, monkeypatch):
-        self.initialize_tests(monkeypatch)
+    async def test_submit_guess_invalid_round_id(self, monkeypatch, patched_game_manager):
+        self.initialize_tests(monkeypatch, patched_game_manager)
         game = await self.game_manager.create_game(handle="test_handle", avatar="test_avatar", user_count=1,
                                                    round_count=1,
                                                    round_duration=timedelta(minutes=1))
@@ -132,8 +155,8 @@ class TestGameManager:
                                                  movie_name="movie_name")
 
     @pytest.mark.asyncio
-    async def test_submit_guess_not_started_round_id(self, monkeypatch):
-        self.initialize_tests(monkeypatch)
+    async def test_submit_guess_not_started_round_id(self, monkeypatch, patched_game_manager):
+        self.initialize_tests(monkeypatch, patched_game_manager)
         game = await self.game_manager.create_game(handle="test_handle", avatar="test_avatar", user_count=1,
                                                    round_count=1,
                                                    round_duration=timedelta(minutes=1))
@@ -144,8 +167,8 @@ class TestGameManager:
                                                  movie_name="movie_name")
 
     @pytest.mark.asyncio
-    async def test_get_game_with_results(self, monkeypatch):
-        self.initialize_tests(monkeypatch)
+    async def test_get_game_with_results(self, monkeypatch, patched_game_manager):
+        self.initialize_tests(monkeypatch, patched_game_manager)
         game = await self.game_manager.create_game(handle="test_handle", avatar="test_avatar", user_count=1,
                                                    round_count=1,
                                                    round_duration=timedelta(minutes=1))
@@ -158,8 +181,8 @@ class TestGameManager:
         assert game.players[0].id in results.keys()
 
     @pytest.mark.asyncio
-    async def test_get_game_with_results_when_game_has_not_finished(self, monkeypatch):
-        self.initialize_tests(monkeypatch)
+    async def test_get_game_with_results_when_game_has_not_finished(self, monkeypatch, patched_game_manager):
+        self.initialize_tests(monkeypatch, patched_game_manager)
         game = await self.game_manager.create_game(handle="test_handle", avatar="test_avatar", user_count=1,
                                                    round_count=1,
                                                    round_duration=timedelta(minutes=1))

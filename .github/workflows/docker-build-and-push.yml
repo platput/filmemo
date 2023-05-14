@@ -9,9 +9,9 @@ jobs:
   build-and-push:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Extract version from tag
-      run: echo "::set-output name=version::${{ github.ref_name }}" | awk -F '-' '{ print $3 }'
+      run: echo "api-release-1.0.5" | awk -F '-' '{ print "::set-output name=version:" $3 }'
       id: extract_version
     - name: Build the Docker image
       run: |

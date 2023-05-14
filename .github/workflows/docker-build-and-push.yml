@@ -12,9 +12,7 @@ jobs:
     - uses: actions/checkout@v3
     - name: Extract version from tag
       run: |
-        
         echo "BUILD_IMAGE_TAG=$(echo $GITHUB_REF_NAME | awk -F '-' '{ print $3 }')" >> $GITHUB_ENV
-        echo "current build tag is: ${{ env.BUILD_IMAGE_TAG }}"
       id: extract_version
     - name: Build the Docker image
       run: |
@@ -27,7 +25,7 @@ jobs:
         password: ${{ secrets.DOCKER_PASSWORD }}
     - name: Push the Docker image
       run: |
-        docker push platput/filmemo:${{ steps.extract_version.outputs.version }}
+        docker push platput/filmemo:${{ env.BUILD_IMAGE_TAG }}
         docker push platput/filmemo:latest
     - name: Update ECS task definition with latest image
       uses: imehedi/actions-awscli-v2@latest

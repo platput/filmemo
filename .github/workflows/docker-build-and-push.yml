@@ -29,3 +29,11 @@ jobs:
       run: |
         docker push platput/filmemo:${{ steps.extract_version.outputs.version }}
         docker push platput/filmemo:latest
+    - name: Update ECS task definition with latest image
+      uses: aws-actions/aws-cli@v2
+      with:
+        args: ecs update-service --cluster default --service f11 --task-definition filmemoapi --force-new-deployment
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_DEFAULT_REGION: us-east-1

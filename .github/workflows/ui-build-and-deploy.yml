@@ -20,17 +20,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Install dependencies
-        run: npm install
-
-      - name: Build the app
-        run: npm run build
+      - name: Install dependencies and build the app
+        run: |
+          cd filmemo-ui
+          npm install
+          npm run build
 
       - name: Upload to S3
         uses: jakejarvis/s3-sync-action@master
         with:
           args: --delete --acl public-read
-          local_dir: dist
+          local_dir: filmemo-ui/dist
           s3_dir: ${{ env.S3_BUCKET_PATH }}
           aws_region: ${{ env.AWS_REGION }}
           aws_access_key_id: ${{ env.AWS_ACCESS_KEY_ID }}

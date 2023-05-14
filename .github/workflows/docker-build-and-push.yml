@@ -13,7 +13,7 @@ jobs:
     - name: Extract version from tag
       run: |
         
-        echo "BUILD_IMAGE_TAG=$(echo ${{ env.GITHUB_REF_NAME }} | awk -F '-' '{ print $3 }')" >> $GITHUB_ENV
+        echo "BUILD_IMAGE_TAG=$(echo $GITHUB_REF_NAME | awk -F '-' '{ print $3 }')" >> $GITHUB_ENV
         echo "current build tag is: ${{ env.BUILD_IMAGE_TAG }}"
       id: extract_version
     - name: Build the Docker image

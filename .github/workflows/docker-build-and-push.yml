@@ -30,7 +30,7 @@ jobs:
     - name: Update ECS task definition with latest image
       uses: imehedi/actions-awscli-v2@latest
       with:
-        args: ecs update-service --cluster default --service f11 --task-definition filmemoapi --force-new-deployment
+        args: ecs update-service --cluster default --service f12 --task-definition filmemoapi --force-new-deployment
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}

@@ -5,20 +5,13 @@ on:
     tags:
       - 'ui-release-*.*.*'
 
-env:
-  AWS_REGION: ap-south-1
-  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-  S3_BUCKET_NAME: ${{ vars.S3_BUKCET_NAME }}
-  S3_BUCKET_PATH: /
-
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Install dependencies and build the app
         run: |
@@ -31,9 +24,9 @@ jobs:
         with:
           args: --delete --acl public-read
           local_dir: filmemo-ui/dist
-          s3_dir: ${{ env.S3_BUCKET_PATH }}
-          aws_region: ${{ env.AWS_REGION }}
-          aws_access_key_id: ${{ env.AWS_ACCESS_KEY_ID }}
-          aws_secret_access_key: ${{ env.AWS_SECRET_ACCESS_KEY }}
-          endpoint: s3.${{ env.AWS_REGION }}.amazonaws.com
-          bucket: ${{ env.S3_BUCKET_NAME }}
+          s3_dir: /
+          aws_region: ap-south-1
+          aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          endpoint: s3.ap-south-1.amazonaws.com
+          bucket: ${{ vars.S3_BUKCET_NAME }}

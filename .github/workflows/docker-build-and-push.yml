@@ -8,13 +8,10 @@ on:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        ref: ${{ github.ref_name }}
     steps:
     - uses: actions/checkout@v2
     - name: Extract version from tag
-      run: echo "::set-output name=version::${{ matrix.ref }}  " | awk -F '-' '{ print $3 }'
+      run: echo "::set-output name=version::${{ github.ref_name }}" | awk -F '-' '{ print $3 }'
       id: extract_version
     - name: Build the Docker image
       run: |
@@ -36,4 +33,4 @@ jobs:
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        AWS_DEFAULT_REGION: us-east-1
+        AWS_DEFAULT_REGION: ap-northeast-1

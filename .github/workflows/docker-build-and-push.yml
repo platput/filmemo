@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        ref: ${{ github.ref }}
+        ref: ${{ github.ref_name }}
     steps:
     - uses: actions/checkout@v2
     - name: Extract version from tag

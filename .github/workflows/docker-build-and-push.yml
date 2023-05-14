@@ -11,12 +11,14 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Extract version from tag
-      run: echo "api-release-1.0.5" | awk -F '-' '{ print "::set-output name=version:" $3 }'
+      run: |
+        echo "api-release-1.0.5" | awk -F '-' '{ print "BUILD_IMAGE_TAG=" $3 }' >> $GITHUB_ENV
+        echo "current build tag is: ${{ env.BUILD_IMAGE_TAG }}"
       id: extract_version
     - name: Build the Docker image
       run: |
-        docker build . --file Dockerfile --tag platput/filmemo:${{ steps.extract_version.outputs.version }}
-        docker tag platput/filmemo:${{ steps.extract_version.outputs.version }} platput/filmemo:latest
+        docker build . --file Dockerfile --tag platput/filmemo:${{ env.BUILD_IMAGE_TAG }}
+        docker tag platput/filmemo:${{ env.BUILD_IMAGE_TAG }} platput/filmemo:latest
     - name: Login to Docker Hub
       uses: docker/login-action@v1
       with:

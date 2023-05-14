@@ -10,11 +10,11 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        tag: ["${{ matrix.ref }}"]
+        ref: ${{ github.ref }}
     steps:
     - uses: actions/checkout@v2
     - name: Extract version from tag
-      run: echo "::set-output name=version::${{ matrix.tag }}  " | awk -F '-' '{ print $3 }'
+      run: echo "::set-output name=version::${{ matrix.ref }}  " | awk -F '-' '{ print $3 }'
       id: extract_version
     - name: Build the Docker image
       run: |
@@ -30,7 +30,7 @@ jobs:
         docker push platput/filmemo:${{ steps.extract_version.outputs.version }}
         docker push platput/filmemo:latest
     - name: Update ECS task definition with latest image
-      uses: aws-actions/aws-cli@v2
+      uses: imehedi/actions-awscli-v2@latest
       with:
         args: ecs update-service --cluster default --service f11 --task-definition filmemoapi --force-new-deployment
       env:

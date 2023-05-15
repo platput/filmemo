@@ -1,6 +1,6 @@
 # filmemo
 A movie emoji party game where users have to guess the movie name from emojis
-
+Game Link: http://filmemo.techtuft.com
 
 ### Setting up and running docker
 

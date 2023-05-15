@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import InfoCard from '@/components/InfoCard.vue';
 import MovieCard from '@/components/MovieCard.vue';
-import PlayersList from '@/components/PlayersList.vue';
+// import PlayersList from '@/components/PlayersList.vue';
 import ShareGame from '@/components/ShareGame.vue';
 import router from '@/router';
 import { useGameStore } from '@/stores/game';
@@ -9,7 +9,6 @@ import { useUserStore } from '@/stores/user';
 import constants from '@/utils/constants';
 import { ref, onBeforeMount } from 'vue';
 import { useRoute } from 'vue-router';
-import { fa } from 'vuetify/lib/iconsets/fa';
 
 const userStore = useUserStore()
 const gameStore = useGameStore()
@@ -25,6 +24,8 @@ const isLoading = ref(true);
 const loadingMessage = ref("Loading...")
 const emoji = ref("")
 const roundId = ref("")
+const resultSnackbarText = ref("")
+const resultSnackbar = ref(false)
 
 onBeforeMount(() => {
     loadingMessage.value = "Fetching Game!"
@@ -78,8 +79,13 @@ onBeforeMount(() => {
                 isLoading.value = false;
                 // console.log(message_data);
               } else if (message_data.message_type == "guess_result") {
-                // let guessCorrectnessFlag = message_data.meta.guess_result;
-                // console.log("guessCorrectnessFlag", guessCorrectnessFlag);
+                let guessCorrectnessFlag = message_data.meta.guess_result;
+                resultSnackbar.value = true;
+                if(guessCorrectnessFlag) {
+                  resultSnackbarText.value = "👏 You guessed it right!"
+                } else {
+                  resultSnackbarText.value = "👎 Sorry, your guess is wrong!"
+                }
               }
             })
         } else {
@@ -134,12 +140,12 @@ function startGame() {
         cols="12"
         sm="2"
       >
-        <v-sheet
+        <!-- <v-sheet
           rounded="lg"
           min-height="268"
         >
           <PlayersList />
-        </v-sheet>
+        </v-sheet> -->
       </v-col>
 
       <v-col
@@ -156,7 +162,7 @@ function startGame() {
             <p class="text-h4 pb-10">{{ loadingMessage }}</p>
             <div v-if="isCurrentUserGameOwner() && !gameStore.checkIfGameHasStarted()" class="py-20">
               <v-btn @click="startGame()" class="mx-auto mb-15">
-                <v-icon icon="fa-duotone fa-flag-checkered"></v-icon>Start Game
+                Start Game
               </v-btn>
             </div>
           </div>
@@ -184,5 +190,21 @@ function startGame() {
         </v-sheet>
       </v-col>
     </v-row>
+    <v-snackbar
+      v-model="resultSnackbar"
+      :timeout="2000"
+    >
+      {{ resultSnackbarText }}
+
+      <template v-slot:actions>
+        <v-btn
+          color="blue"
+          variant="text"
+          @click="resultSnackbar = false"
+        >
+          Close
+        </v-btn>
+      </template>
+    </v-snackbar>
   </v-container>
 </template>

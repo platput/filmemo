@@ -73,12 +73,12 @@ onMounted(() => {
         cols="12"
         sm="2"
       >
-        <v-sheet
+        <!-- <v-sheet
           rounded="lg"
           min-height="268"
         >
           <PlayersList />
-        </v-sheet>
+        </v-sheet> -->
       </v-col>
 
       <v-col
@@ -126,12 +126,12 @@ onMounted(() => {
         cols="12"
         sm="2"
       >
-        <v-sheet
+        <!-- <v-sheet
           rounded="lg"
           min-height="268"
         >
           <InfoCard />
-        </v-sheet>
+        </v-sheet> -->
       </v-col>
     </v-row>
   </v-container>

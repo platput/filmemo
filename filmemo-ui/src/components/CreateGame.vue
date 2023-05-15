@@ -6,8 +6,9 @@
             :min="1"
             :max="60"
             :step="1"
+            density="compact"
             thumb-label
-            class="my-4"
+            class="my-1"
         >
             <template v-slot:append>
                 <v-text-field
@@ -26,8 +27,9 @@
             :min="1"
             :max="60"
             :step="1"
+            density="compact"
             thumb-label
-            class="my-4"
+            class="my-1"
         >
             <template v-slot:append>
                 <v-text-field
@@ -45,9 +47,10 @@
             v-model="state.roundDuration"
             :max="10"
             :min="1"
+            density="compact"
             :step="1"
             thumb-label
-            class="my-4"
+            class="my-1"
         >
             <template v-slot:append>
                 <v-text-field
@@ -136,6 +139,7 @@ function createGame() {
     }).catch((err) => {
         // TODO: Handling of this error has to be improved.
         alert("Error occurred while trying to create the game, please try again later.")
+        state.isLoading = false;
         console.log(err)
     });
 }

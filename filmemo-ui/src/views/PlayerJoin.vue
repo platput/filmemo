@@ -15,7 +15,7 @@ import AddPlayer from '../components/AddPlayer.vue';
           rounded="lg"
         >
           <v-sheet class="pt-5">
-            <p class="text-h4 text-center mb-5">Create Game</p>
+            <p class="text-h4 text-center mb-5">Join Game</p>
             <AddPlayer />
           </v-sheet>
         </v-sheet>

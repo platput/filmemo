@@ -9,7 +9,7 @@
           ></v-text-field>        
           <AvatarSelector @set-avatar="setAvatar" />
         <div class="text-center">
-            <v-btn rounded="false" @click="joinGame" variant="flat">Join Game</v-btn>
+            <v-btn rounded="false" @click="joinGame" variant="flat" :loading="state.isLoading">Join Game</v-btn>
         </div>
     </v-form>
 </template>

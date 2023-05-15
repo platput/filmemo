@@ -1,6 +1,5 @@
 import json
 import random
-from json import JSONDecodeError
 
 import openai
 
@@ -25,9 +24,10 @@ Use more than a couple of emojis for each movie name so that it makes easier to 
         self.result_helper_content = f'''
 Act like a movie emoji game helper program which takes an input. The input will have two parts. One part will be 
 a list of movies and their emoji representations. The other part will be an emoji representation from the above list 
-and the movie name which is guessed by the users. You have to check if the guess is right or wrong. If it is right,  
-reply with `yes` and if the guess is wrong, reply with `no`. 
+and the movie name which is guessed by the users. You have to check if the guess is right or wrong. 
+If it is right,  reply with `yes` and if the guess is wrong, reply with `no`. 
 The reply shouldn't have anything part from either `yes` or `no`.
+Please note that the answer can considered right if the guess is a slight variation of the right movie name.
         '''
 
     def get_movie_names_in_emoji_repr(self, count=10) -> list[dict[str:str]]:

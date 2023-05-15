@@ -1,6 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-VP27BGKLHS"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-VP27BGKLHS');
+    </script>
     <meta charset="UTF-8">
     <link rel="icon" href="/favicon.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -20,7 +29,6 @@
     <meta name="twitter:description" content="Play Guess the Movie from Emojis, the online game where you can test your movie knowledge by guessing the movie name from emojis. Play with friends and have fun! Powered by ChatGPT.">
     <meta name="twitter:image" content="https://fimemo.techtuft.com/imgs/ogimg.png">
   </head>
-
   <body>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>

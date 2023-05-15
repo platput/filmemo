@@ -17,8 +17,11 @@
         >
           <v-container>
             <div class="align-center text-center">
-              <img src="@/assets/3.png" height="500"/>
-              <p>This is the about us page for the filmemo game.</p>
+              <img src="@/assets/3.png" height="400"/>
+              <p>Created with ❤️ by <a href="https://github.com/platput">platput</a>.</p>
+              <p>Powered by AWS ECS, Firebase Firestore, FastAPI, Vue.js, Vuetify and ChatGPT</p>
+              <p>ChatGPT is your game master! 🤖</p>
+              <p>Source Code @ <a href="https://github.com/platput/filmemo">GitHub</a></p>
             </div>
           </v-container>
         </v-sheet>

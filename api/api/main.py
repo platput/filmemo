@@ -37,7 +37,7 @@ game_mgr = GameManager()
 
 @app.get("/")
 async def root():
-    return {"message": "Welcome to filmemo's API", "version": "1.0.*"}
+    return {"message": "Welcome to filmemo's API", "version": "1.1.*"}
 
 
 @app.post("/game/create")
